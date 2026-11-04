@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin | BLIERICH</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body data-page="app" data-role="admin">
+    <aside class="sidebar">
+      <div class="logo-box">
+        <img
+          src="{{ url_for('static', filename='images/bluerich logo.png') }}"
+          alt="Company logo"
+          onerror="this.style.opacity = 0"
+        /><span>BLIERICH<small>Sales &amp; Operations</small></span>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <button class="btn out" id="logout">Sign out</button>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <h1 id="title"></h1>
+        <span class="role" id="who"></span>
+      </header>
+      <div id="view"></div>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

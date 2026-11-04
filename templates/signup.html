@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create account | BLIERICH</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body data-page="signup">
+    <div class="auth">
+      <section class="panel">
+        <div class="logo-box">
+          <img
+            src="{{ url_for('static', filename='images/bluerich logo.png') }}"
+            alt="Company logo"
+            onerror="this.style.opacity = 0"
+          /><span>BLIERICH<small>Sales &amp; Operations</small></span>
+        </div>
+        <h3>Create account</h3>
+        <form>
+          <label>Full name<input name="name" type="text" required /></label
+          ><label>Email<input name="email" type="email" required /></label
+          ><label
+            >Role<select name="role" required>
+              <option value="sales">Sales staff</option>
+              <option value="kitchen">Kitchen staff</option>
+              <option value="bakery">Bakery staff</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select></label
+          ><label
+            >Password<input
+              name="password"
+              type="password"
+              minlength="6"
+              required /></label
+          ><label
+            >Confirm password<input
+              name="confirm"
+              type="password"
+              required /></label
+          ><button class="btn">Sign up</button>
+        </form>
+        <p class="muted">Have an account? <a href="{{ url_for('sign_in') }}">Sign in</a></p>
+      </section>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
