@@ -1,7 +1,9 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = "your-secret-key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bluerich.db"
 
 db = SQLAlchemy(app)
@@ -16,9 +18,132 @@ class User(db.Model):
 @app.route("/signin")
 def sign_in():
     return render_template("signin.html")
+@app.route("/api/signin", methods=["POST"])
+def api_sign_in():
+    data = request.get_json(silent=True) or request.form
 
-@app.route("/signup")
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    if not email or not password:
+        return jsonify({
+            "success": False,
+            "message": "Email and Password are Required!"
+        })
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not check_password_hash(user.password_hash, password):
+        return jsonify({
+            "success": False,
+            "message": "Invalid Email or Password!"
+        }), 401
+
+    session.clear()
+    session["user_id"] = user.id
+    redirects = {
+    "admin": "/admin",
+    "sales": "/sales_account",
+    "manager": "/manager",
+    "cashier": "/cashier",
+    "kitchen": "/kitchen",
+    "bakery": "/bakery"
+}
+
+    return jsonify({
+        "success": True,
+        "message": "Login Successful!",
+        "redirect": redirects.get(user.role, "/signin"),
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role
+        }
+    })
+
+@app.route("/api/session")
+def api_session():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({
+            "authenticated": False
+        }), 401
+
+    user = User.query.get(user_id)
+    if not user:
+        session.clear()
+        return jsonify({
+            "authenticated": False
+        }), 401
+
+    return jsonify({
+        "authenticated": True,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role
+        }
+    })
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    session.clear()
+    return jsonify({
+        "success": True,
+        "message": "Logged out successfully!"
+    })
+
+@app.route("/signup", methods=["GET"])
+@app.route("/api/signup", methods=["POST"])
 def sign_up():
+    if request.method == "POST":
+        print("FLASK SIGNUP ROUTE REACHED")
+        data = request.get_json(silent=True) or request.form
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "")
+        confirm_pass = data.get("confirm", "")
+        role = data.get("role", "")
+        print("SUBMITTED ROLE:", repr(role))
+        if not name or not email or not password or not confirm_pass or not role:
+            return jsonify({
+                "success": False,
+                "message": "Fields Are Empty!"
+            }), 400
+        if password != confirm_pass:
+            return jsonify({
+                "success": False,
+                "message": "Passwords Don't Match!"
+            }), 400
+        elif User.query.filter_by(email=email).first():
+            return jsonify({
+                "success": False,
+                "message": "Email Already Exists!"
+            }), 409
+        allowed_roles = ["sales", "cashier", "kitchen", "bakery", "manager"]
+        if role not in allowed_roles:
+            return jsonify({
+                "success": False,
+                "message": "Invalid Role Selected!"
+            }), 400
+        hashed_password = generate_password_hash(password)
+        new_user = User(
+            name = name,
+            email = email,
+            password_hash = hashed_password,
+            role = role
+        )
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Account Created Successfully!",
+            "redirect": url_for("sign_in")
+        })
+    
+    
     return render_template("signup.html")
 
 @app.route("/admin")
@@ -38,4 +163,6 @@ def cashier_dashboard():
     return render_template("cashier.html")
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

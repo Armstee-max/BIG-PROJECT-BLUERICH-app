@@ -1,125 +1,1612 @@
-document.documentElement.dataset.theme=localStorage.getItem('bl_theme')||'dark';
-const I={dashboard:'<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',products:'<path d="M21 8v8l-9 5-9-5V8l9-5z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',staff:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7M17 4a4 4 0 0 1 0 8M22 21c0-3-2-5.500-5-6.500"/>',sales:'<path d="M4 3h16v18l-3-2-2 2-3-2-3 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/>',expenses:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',verify:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',reports:'<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',accounts:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.500"/><path d="M5 17c.5-2 2-3 4-3s3.500 1 4 3M15 9h3M15 13h3"/>',profile:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.500 18c1-2 3-3 5.500-3s4.500 1 5.500 3"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',attendance:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4m-8 9 2 2 4-4"/>',sell:'<circle cx="9" cy="20" r="1.500"/><circle cx="18" cy="20" r="1.500"/><path d="M2 3h3l2.500 12H19l2-8H6"/>',handover:'<path d="M4 8h14l-3-3M20 16H6l3 3"/>',notifications:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 21a2 2 0 0 0 4 0"/>',moon:'<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M2 12h2M20 12h2M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400"/>',signout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',alert:'<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'};
-I.inventory=I.stock=I.baked=I.products;
-const ic=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k]||I.dashboard}</svg>`;
-addEventListener('load',()=>setTimeout(()=>{const l=document.getElementById('loader');if(l){l.classList.add('hide');setTimeout(()=>l.remove(),500)}},1000));
-const $=(s,r=document)=>r.querySelector(s),db={get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem('bl_'+k))??d}catch{return d}},set:(k,v)=>localStorage.setItem('bl_'+k,JSON.stringify(v))};
-const N=v=>'₦'+(+v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),day=()=>new Date().toISOString().slice(0,10),tm=()=>new Date().toLocaleTimeString(),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.append(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),200)},2400)};
-const hash=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-const me=()=>db.get('session',null),P=document.body.dataset.page;
-if(P==='signin'||P==='signup'){
-  const s=me();if(s)location.href=s.role+'.html';
-  const login=u=>{db.set('session',{email:u.email,name:u.name,role:u.role});setTimeout(()=>location.href=u.role+'.html',500)};
-  $('form').addEventListener('submit',async e=>{
-    e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),users=db.get('users');f.email=f.email.trim().toLowerCase();const h=await hash(f.password);
-    if(P==='signup'){
-      if(f.password.length<6)return toast('Password must be at least 6 characters');
-      if(f.password!==f.confirm)return toast('Passwords do not match');
-      if(users.some(u=>u.email===f.email))return toast('Email already registered');
-      const u={name:f.name.trim(),email:f.email,role:f.role,pw:h,shift:'Morning',excusedUntil:'',joined:day()};
-      db.set('users',[...users,u]);db.set('notes',[...db.get('notes'),{id:uid(),to:'admin',text:'New account: '+u.name+' ('+u.role+')',date:day(),time:tm(),read:false}]);toast('Account created');login(u);
-    }else{const u=users.find(x=>x.email===f.email&&x.pw===h);u?login(u):toast('Wrong email or password')}
-  });
-}else{
-  const s=me();
-  if(!s)location.href='signin.html';else if(s.role!==document.body.dataset.role)location.href=s.role+'.html';else app(s);
+
+document.documentElement.dataset.theme = localStorage.getItem('bl_theme') || 'dark';
+
+const I = {
+    dashboard: '<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+    products: '<path d="M21 8v8l-9 5-9-5V8l9-5z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+    staff: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7M17 4a4 4 0 0 1 0 8M22 21c0-3-2-5.5-5-6.5"/>',
+    sales: '<path d="M4 3h16v18l-3-2-2 2-3-2-3 2-2-2-3 2z"/><path d="M8 8h8M8 12h8"/>',
+    expenses: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+    verify: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    reports: '<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+    accounts: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5 17c.5-2 2-3 4-3s3.5 1 4 3M15 9h3M15 13h3"/>',
+    profile: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18c1-2 3-3 5.5-3s4.5 1 5.5 3"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+    attendance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4m-8 9 2 2 4-4"/>',
+    sell: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12H19l2-8H6"/>',
+    handover: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
+    notifications: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 21a2 2 0 0 0 4 0"/>',
+    moon: '<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    signout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    alert: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'
+};
+
+I.inventory = I.stock = I.baked = I.products;
+
+const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[k] || I.dashboard}</svg>`;
+
+addEventListener('load', () => setTimeout(() => {
+    const l = document.getElementById('loader');
+    if (l) {
+        l.classList.add('hide');
+        setTimeout(() => l.remove(), 500);
+    }
+}, 1000));
+
+const $ = (s, r = document) => r.querySelector(s);
+
+const db = {
+    get: (k, d = []) => {
+        try {
+            return JSON.parse(localStorage.getItem('bl_' + k)) ?? d;
+        } catch {
+            return d;
+        }
+    },
+    set: (k, v) => localStorage.setItem('bl_' + k, JSON.stringify(v))
+};
+
+const N = v => '₦' + (+v || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
+const day = () => new Date().toISOString().slice(0, 10);
+const tm = () => new Date().toLocaleTimeString();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+}[c]));
+
+const toast = m => {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = m;
+    document.body.append(t);
+
+    setTimeout(() => {
+        t.classList.add('out');
+        setTimeout(() => t.remove(), 200);
+    }, 2400);
+};
+
+const hash = async s => [...new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+)].map(b => b.toString(16).padStart(2, '0')).join('');
+
+const me = () => db.get('session', null);
+const P = document.body.dataset.page;
+
+
+/* ---------------------------------
+   AUTHENTICATION: SIGNIN AND SIGNUP
+---------------------------------- */
+
+if (P === 'signin' || P === 'signup') {
+
+    fetch('/api/session')
+        .then(response => response.json())
+        .then(data => {
+            if (data.authenticated) {
+                const routes = {
+                    admin: '/admin',
+                    sales: '/sales_account',
+                    manager: '/manager',
+                    cashier: '/cashier',
+                    kitchen: '/kitchen',
+                    bakery: '/bakery'
+                };
+
+                window.location.href =
+                    routes[data.user.role] || '/signin';
+            }
+        })
+        .catch(() => {});
+
+    const form = document.querySelector('form');
+
+    if (form) {
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            const endpoint = P === 'signup'
+                ? '/api/signup'
+                : '/api/signin';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    toast(result.message);
+                    return;
+                }
+
+                toast(result.message);
+
+                if (P === 'signup') {
+                    setTimeout(() => {
+                        window.location.href = '/signin';
+                    }, 1000);
+                } else {
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 500);
+                }
+
+            } catch (error) {
+                toast('Something went wrong. Please try again.');
+            }
+        });
+    }
 }
-function app(s){
-const R=s.role,PR=()=>db.get('products'),SA=()=>db.get('sales'),EX=()=>db.get('exp'),U=()=>db.get('users');
-const mine=R==='kitchen'?'Kitchen':R==='bakery'?'Bakery':null,own=()=>mine?PR().filter(p=>p.cat===mine):PR();
-const NAV={admin:['dashboard','products','staff','sales','expenses','verify','reports','accounts','notifications','settings','profile'],manager:['dashboard','inventory','verify','sales','notifications','profile'],sales:['dashboard','sell','expenses','attendance','handover','notifications','profile'],kitchen:['dashboard','stock','attendance','handover','notifications','profile'],bakery:['dashboard','baked','notifications','profile'],cashier:['dashboard','sell','sales','expenses','attendance','handover','notifications','profile']};
-const LBL={dashboard:'Dashboard',products:'Products',staff:'Staff & Shifts',sales:'Sales Records',expenses:'Expenses',verify:'Stock Verification',reports:'Reports',inventory:'Inventory',attendance:'Attendance',sell:'Record Sale',handover:'Handover',stock:'Kitchen Stock',baked:'Baked Products',accounts:'Accounts',settings:'Settings',profile:'My Profile',notifications:'Notifications',receipt:'Receipt'};
-const sum=a=>a.reduce((t,x)=>t+x.total,0),B=(c,t)=>`<span class="badge ${c}">${t}</span>`;
-const tbl=(h,r)=>`<div class="table-wrap"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.length?r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${h.length}" class="empty">Nothing recorded yet</td></tr>`}</table></div>`;
-const panel=(t,b)=>`<section class="panel"><h3>${t}</h3>${b}</section>`,CI={"Today's Sales":'sales','Orders Today':'sell','Low Stock':'alert','Pending Verification':'verify','My Sales Today':'sales','My Orders':'sell','Products':'products','Added Today':'stock'},card=(a,b)=>`<div class="card"><div><p>${a}</p><h2>${b}</h2></div><span class="tile">${ic(CI[a]||'dashboard')}</span></div>`;
-const opts=a=>a.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.qty} in stock)</option>`).join('');
-const form=(a,f,b)=>`<form data-do="${a}">${f}<button class="btn">${b}</button></form>`,inp=(n,l,t='text',x='')=>`<label>${l}<input name="${n}" type="${t}" ${x} required></label>`,sel=(n,l,o)=>`<label>${l}<select name="${n}" required>${o}</select></label>`;
-const prodTable=l=>tbl(['Product','Category','Price','In stock'],l.map(p=>[esc(p.name),p.cat,N(p.price),p.qty]));
-const addV=t=>panel(t,form('addStock',sel('pid','Product',opts(own()))+inp('qty','Quantity added','number','min="1"'),'Add to stock'))+panel('My products',prodTable(own()));
-const V={
-dashboard(){const sl=SA().filter(x=>x.date===day()),my=sl.filter(x=>x.by===s.email),low=own().filter(p=>p.qty<=5),pend=db.get('verifs').filter(v=>v.status==='Discrepancy').length;
- const c=R==='admin'||R==='manager'?[card("Today's Sales",N(sum(sl))),card('Orders Today',sl.length),card('Low Stock',low.length),card('Pending Verification',pend)]:R==='cashier'?[card("Today's Sales",N(sum(sl))),card('Orders Today',sl.length),card('My Sales Today',N(sum(my))),card('Low Stock',low.length)]:R==='sales'?[card('My Sales Today',N(sum(my))),card('My Orders',my.length),card('Low Stock',low.length)]:[card('Products',own().length),card('Low Stock',low.length),card('Added Today',db.get('adds').filter(a=>a.date===day()&&a.by===s.email).length)];
- return `<section class="grid">${c.join('')}</section>`+panel('Low stock (5 or fewer)',tbl(['Product','Category','In stock'],low.map(p=>[esc(p.name),p.cat,p.qty])))},
-products:()=>`<div class="two">`+panel('Add product',form('addProduct',inp('name','Product name')+sel('cat','Category','<option>Kitchen</option><option>Bakery</option><option>Drinks</option>')+inp('price','Selling price (₦)','number','min="0" step="0.01"')+inp('qty','Opening stock','number','min="0"'),'Save product'))+panel('Correct stock (logged)',form('adjust',sel('pid','Product',opts(PR()))+inp('qty','New quantity','number','min="0"')+inp('reason','Reason'),'Update stock'))+`</div>`+panel('All products',prodTable(PR())),
-inventory:()=>panel('Inventory',prodTable(PR())),
-staff(){const at=db.get('att');return panel('Staff, shifts & attendance',tbl(['Name','Role','Shift','Excused until','Today','Actions'],U().filter(u=>u.role!=='admin').map(u=>{const sh=['sales','kitchen','cashier'].includes(u.role),pr=at.some(a=>a.email===u.email&&a.date===day());
- return [esc(u.name),u.role,sh?`<select data-shift="${u.email}">${['Morning','Evening'].map(x=>`<option${u.shift===x?' selected':''}>${x}</option>`).join('')}</select>`:'—',u.excusedUntil||'—',pr?B('done','Present'):B('new','Absent'),`<div class="row">${pr?'':`<button class="btn sm" data-act="mark" data-id="${u.email}">Mark present</button>`}<input class="days" type="number" min="1" max="30" placeholder="days"><button class="btn sm light" data-act="excuse" data-id="${u.email}">Excuse</button></div>`]})))},
-sales:()=>panel('Sales records',tbl(['Date','Time','Receipt','Items','Total','Sold by'].concat(rc?['']:[]),SA().slice().reverse().map(x=>[x.date,x.time,x.no||'—',list(x),N(x.total),esc(x.byName)].concat(rc?[x.id?`<a class="btn sm light" href="#receipt/${x.id}">Receipt</a>`:'—']:[])))),
-receipt(){const x=SA().find(i=>i.id===arg);if(!x)return panel('Receipt','<p class="muted">Sale not found.</p>');
- return `<div class="rcpt-bar"><a class="btn sm light" href="#sales">Back to sales</a><button class="btn sm" data-act="print">Print receipt</button></div><section class="panel receipt"><h2>BLUERICH</h2><p class="muted">Receipt ${x.no||x.id}</p><p class="muted">${x.date} · ${x.time}</p><p class="muted">Served by ${esc(x.byName)}</p>`+tbl(['Item','Qty','Price','Total'],items(x).map(i=>[esc(i.name),i.qty,N(i.price),N(i.total)]))+`<p class="grand">Total: ${N(x.total)}</p><p class="muted c">Thank you for your purchase</p></section>`},
-sell(){const l=SA().filter(x=>x.date===day()&&x.by===s.email).reverse(),tot=cart.reduce((t,c)=>t+c.qty*c.price,0),d=cart.length?'':' disabled';return `<div class="two">`+panel('New sale (add one or more products)',form('addItem',sel('pid','Product',opts(PR().filter(p=>p.qty>0)))+inp('qty','Quantity','number','min="1" value="1"'),'Add item')+`<br><h3>Items in this sale</h3>`+tbl(['Product','Qty','Price','Total',''],cart.map((c,n)=>[esc(c.name),c.qty,N(c.price),N(c.qty*c.price),`<button class="btn sm danger" data-act="rmItem" data-id="${n}">Remove</button>`]))+`<p class="grand">Total: ${N(tot)}</p><div class="row"><button class="btn" data-act="checkout"${d}>Complete sale</button><button class="btn light" data-act="clearCart"${d}>Clear</button></div>`)+panel('My sales today',tbl(['Time','Items','Total'],l.map(x=>[x.time,list(x),N(x.total)])))+`</div>`},
-expenses(){const l=EX().filter(x=>R==='admin'||x.by===s.email).reverse();return (['sales','cashier'].includes(R)?panel('Record expense',form('expense',inp('item','What was it for?')+inp('amount','Amount (₦)','number','min="1" step="0.01"'),'Save expense')):'')+panel('Expenses',tbl(['Date','Item','Amount','By'],l.map(x=>[x.date,esc(x.item),N(x.amount),esc(x.byName)])))},
-verify(){const v=db.get('verifs').slice().reverse(),fx=db.get('fixes').slice().reverse(),ad=R==='admin';
- return (R==='manager'?panel('Verify physical count',form('verify',sel('pid','Product',opts(PR()))+inp('cnt','Physical count','number','min="0"'),'Submit count')):'')+
- panel('Verification records',tbl(['Date','Product','Expected','Counted','Difference','Status','By'].concat(ad?['Action']:[]),v.map(x=>[x.date,esc(x.name),x.exp,x.cnt,x.cnt-x.exp,B(x.status==='Discrepancy'?'progress':x.status==='Resolved'?'done':'new',x.status),esc(x.byName)].concat(ad?[x.status==='Discrepancy'?`<button class="btn sm" data-act="resolve" data-id="${x.id}">Correct stock</button>`:'—']:[]))))+
- (ad?panel('Correction history',tbl(['Date','Product','Old','New','Reason','By'],fx.map(x=>[x.date,esc(x.name),x.old,x.nw,esc(x.reason),esc(x.byName)]))):'')},
-reports(){const d={},g=k=>d[k]??={s:0,n:0,e:0};SA().forEach(x=>{const r=g(x.date);r.s+=x.total;r.n++});EX().forEach(x=>g(x.date).e+=+x.amount);
- return panel('Daily report',tbl(['Date','Orders','Sales','Expenses','Net'],Object.keys(d).sort().reverse().map(k=>[k,d[k].n,N(d[k].s),N(d[k].e),N(d[k].s-d[k].e)])))},
-attendance(){const st=['sales','kitchen','cashier'].includes(R),u=U().find(x=>x.email===s.email)||{},a=db.get('att').filter(x=>!st||x.email===s.email).reverse();
- return (st?panel('Mark attendance',`<p class="muted">Shift: ${u.shift||'—'}. Your device location is checked. If it fails, ask the admin to mark you present.</p><br><button class="btn" data-act="here">I'm here</button>`):'')+panel('Attendance records',tbl(['Date','Time','Staff','Method'],a.map(x=>[x.date,x.time,esc(x.name),x.method])))},
-handover(){const h=db.get('hand').slice().reverse();return panel('Hand over closing stock',form('hand',sel('pid','Product',opts(own()))+inp('cnt','Closing count','number','min="0"'),'Submit handover'))+panel('Handovers',tbl(['Date','Product','Expected','Counted','From','Status',''],h.map(x=>[x.date,esc(x.name),x.exp,x.cnt,esc(x.byName),B(x.status==='Accepted'?'done':'progress',x.status),x.status==='Pending'&&x.by!==s.email?`<button class="btn sm" data-act="accept" data-id="${x.id}">Accept</button>`:'—'])))},
-profile(){const vw=R==='admin'&&arg?decodeURIComponent(arg):s.email,self=vw===s.email,u=U().find(x=>x.email===vw);if(!u)return panel('Profile','<p class="muted">Account not found.</p>');
- const track=['sales','kitchen','cashier'].includes(u.role),at=db.get('att').filter(a=>a.email===u.email).reverse();
- const head=`<div class="prof"><div class="avatar">${u.pic?`<img src="${u.pic}" alt="">`:esc(u.name[0]||'?').toUpperCase()}</div><div><h2>${esc(u.name)}</h2><p class="muted">${esc(u.email)} · ${u.role}${track?' · '+u.shift+' shift':''}</p><br><div class="row">${self?`<label class="btn sm light">Upload photo<input type="file" accept="image/*" data-pic hidden></label>${u.pic?'<button class="btn sm danger" data-act="rmpic">Remove photo</button>':''}`:'<a class="btn sm light" href="#accounts">Back to accounts</a>'}</div></div></div>`;
- const info=self?form('profile',`<label>Full name<input name="name" value="${esc(u.name)}" required></label><label>Phone<input name="phone" value="${esc(u.phone||'')}"></label><label>Address<input name="address" value="${esc(u.address||'')}"></label><label>About me<textarea name="about" rows="3">${esc(u.about||'')}</textarea></label>`,'Save profile'):tbl(['Phone','Address','About','Joined'],[[esc(u.phone||'—'),esc(u.address||'—'),esc(u.about||'—'),u.joined||'—']]);
- return panel('Profile',head)+panel(self?'My information':'Information',info)+(track?panel('Attendance record ('+at.length+' day'+(at.length===1?'':'s')+')',tbl(['Date','Time','Method'],at.map(x=>[x.date,x.time,x.method]))):'')},
-notifications(){const l=NT().slice().reverse();return panel('All notifications',`<button class="btn sm light" data-act="readall">Mark all as read</button><br><br>`+(l.length?l.map(n=>`<${n.sale?'a':'div'} class="note${n.read?'':' unread'}" ${n.sale?`href="#receipt/${n.sale}" data-act="openread"`:'data-act="readone"'} data-id="${n.id}"><span class="nd"></span><div><p>${esc(n.text)}</p><small>${n.date} · ${n.time}</small>${n.sale?'<br><small class="lnk">View and print receipt →</small>':''}</div></${n.sale?'a':'div'}>`).join(''):'<p class="empty">No notifications yet</p>'))},
-accounts(){const at=db.get('att'),sa=SA(),l=U().filter(u=>u.email!==s.email);
- return panel('All accounts',`<label>Search<input data-filter placeholder="Name, email or role"></label><br>`+tbl(['Name','Email','Role','Shift','Status','Joined','Present today','Sales','Action'],l.map(u=>{const m=sa.filter(x=>x.by===u.email);return [esc(u.name),esc(u.email),u.role,['sales','kitchen','cashier'].includes(u.role)?u.shift:'—',u.excusedUntil>=day()?B('progress','Excused to '+u.excusedUntil):B('done','Active'),u.joined||'—',at.some(a=>a.email===u.email&&a.date===day())?B('done','Yes'):B('new','No'),['sales','cashier'].includes(u.role)?m.length+' · '+N(sum(m)):'—',`<div class="row"><a class="btn sm light" href="#profile/${encodeURIComponent(u.email)}">View</a><button class="btn sm danger" data-act="delUser" data-id="${u.email}">Delete</button></div>`]}))) +
- panel('Delete all other accounts',`<p class="muted">Removes all ${l.length} account(s) listed above. Your own account stays.</p>`+form('delAll',inp('password','Confirm your password','password'),'Delete all other accounts').replace('class="btn"','class="btn danger"'))},
-settings:()=>panel('Account settings',`<p class="muted">Signed in as ${esc(s.name)} (${esc(s.email)}). Products, sales and other business records are kept when accounts are deleted.</p>`)+panel('Delete my account',`<p class="muted">Removes your admin account and signs you out. If no other admin exists, nobody can manage the app until a new admin signs up.</p>`+form('delMe',inp('password','Confirm your password','password'),'Delete my account').replace('class="btn"','class="btn danger"')),
-stock:()=>addV('Add kitchen stock'),baked:()=>addV('Record baked products')};
-const log=(k,o)=>db.set(k,[...db.get(k),o]),by={by:s.email,byName:s.name,date:day()};
-const NT=()=>db.get('notes').filter(n=>n.to===R||n.to===s.email),note=(to,t,sale)=>log('notes',{id:uid(),to,text:t,sale,date:day(),time:tm(),read:false}),SUB={dashboard:"Today's overview",notifications:'Alerts and updates for you',profile:'Your photo and personal details'};
-const prod=id=>{const l=PR(),p=l.find(x=>x.id===id);if(!p)throw Error('Choose a product');return[l,p]};
-const markAtt=(email,method)=>{const u=U().find(x=>x.email===email);if(u.excusedUntil>=day())throw Error('Excused until '+u.excusedUntil);if(db.get('att').some(a=>a.email===email&&a.date===day()))throw Error('Already marked present today');log('att',{email,name:u.name,date:day(),time:tm(),method});if(method==='Admin')note(email,'The admin marked you present today');return 'Attendance marked'};
-const pw=async f=>{if(await hash(f.password)!==U().find(x=>x.email===s.email)?.pw)throw Error('Wrong password')};
-const setU=o=>{const u=U();Object.assign(u.find(x=>x.email===s.email),o);db.set('users',u)};
-let arg='',cart=[];
-const items=x=>x.items||[{name:x.name,qty:x.qty,price:x.qty?x.total/x.qty:0,total:x.total}],rc=R==='cashier'||R==='admin',list=x=>items(x).map(i=>esc(i.name)+' ×'+i.qty).join(', ');
-const A={
-addProduct(f){log('products',{id:uid(),name:f.name.trim(),cat:f.cat,price:+f.price,qty:+f.qty});return 'Product saved'},
-adjust(f){const[l,p]=prod(f.pid);log('fixes',{...by,name:p.name,old:p.qty,nw:+f.qty,reason:f.reason});p.qty=+f.qty;db.set('products',l);return 'Stock updated and logged'},
-addItem(f){const[,p]=prod(f.pid),q=+f.qty,c=cart.find(x=>x.pid===p.id),h=c?c.qty:0;if(q<1||h+q>p.qty)throw Error('Only '+(p.qty-h)+' more in stock');c?c.qty+=q:cart.push({pid:p.id,name:p.name,price:p.price,qty:q});return 'Item added'},
-sell(f){const[l,p]=prod(f.pid),q=+f.qty;if(q<1||q>p.qty)throw Error('Only '+p.qty+' in stock');p.qty-=q;db.set('products',l);log('sales',{...by,time:tm(),pid:p.id,name:p.name,qty:q,total:q*p.price});if(p.qty<=5)['admin','manager'].forEach(r=>note(r,'Low stock: '+p.name+' ('+p.qty+' left)'));return 'Sale saved: '+N(q*p.price)},
-expense(f){log('exp',{...by,item:f.item,amount:+f.amount});return 'Expense saved'},
-addStock(f){const[l,p]=prod(f.pid);p.qty+=+f.qty;db.set('products',l);log('adds',{...by,pid:p.id,qty:+f.qty});return 'Stock added'},
-verify(f){const[,p]=prod(f.pid),c=+f.cnt;log('verifs',{...by,id:uid(),name:p.name,pid:p.id,exp:p.qty,cnt:c,status:c===p.qty?'Matched':'Discrepancy'});if(c!==p.qty)note('admin','Stock discrepancy on '+p.name+': expected '+p.qty+', counted '+c);return c===p.qty?'Counts match':'Discrepancy reported to admin'},
-async delAll(f){await pw(f);if(!confirm('Delete ALL other accounts? This cannot be undone.'))throw Error('Cancelled');db.set('users',U().filter(u=>u.email===s.email));return 'All other accounts deleted'},
-async delMe(f){await pw(f);if(!confirm('Delete your own account? You will be signed out.'))throw Error('Cancelled');db.set('users',U().filter(u=>u.email!==s.email));localStorage.removeItem('bl_session');toast('Account deleted');setTimeout(()=>location.href='signup.html',900);return 'Account deleted'},
-profile(f){const name=f.name.trim();if(!name)throw Error('Name is required');setU({name,phone:f.phone.trim(),address:f.address.trim(),about:f.about.trim()});s.name=by.byName=name;db.set('session',{...s});return 'Profile saved'},
-hand(f){const[,p]=prod(f.pid);log('hand',{...by,id:uid(),name:p.name,exp:p.qty,cnt:+f.cnt,status:'Pending'});return 'Handover submitted'}};
-const C={
-mark:b=>markAtt(b.dataset.id,'Admin'),
-here:()=>new Promise((ok,no)=>{if(!navigator.geolocation)return no(Error('Location not supported. Ask the admin to mark you present.'));navigator.geolocation.getCurrentPosition(()=>{try{ok(markAtt(s.email,'GPS'))}catch(x){no(x)}},()=>no(Error('Location failed. Ask the admin to mark you present.')),{timeout:8000})}),
-excuse(b){const n=Math.floor(+b.previousElementSibling.value);if(!(n>=1&&n<=30))throw Error('Enter 1 to 30 days');const d=new Date();d.setDate(d.getDate()+n);const u=U();u.find(x=>x.email===b.dataset.id).excusedUntil=d.toISOString().slice(0,10);db.set('users',u);note(b.dataset.id,'You have been excused for '+n+' days');return 'Excused for '+n+' days'},
-resolve(b){const v=db.get('verifs'),x=v.find(i=>i.id===b.dataset.id),r=prompt('Reason for the correction?');if(!r)throw Error('A reason is required');const[l,p]=prod(x.pid);log('fixes',{...by,name:p.name,old:p.qty,nw:x.cnt,reason:r});p.qty=x.cnt;x.status='Resolved';note('manager','Stock corrected for '+p.name);db.set('products',l);db.set('verifs',v);return 'Stock corrected'},
-delUser(b){const u=U().find(x=>x.email===b.dataset.id);if(!u||!confirm('Delete '+u.name+' ('+u.role+')? This cannot be undone.'))return;db.set('users',U().filter(x=>x.email!==u.email));return u.name+' deleted'},
-rmpic(){setU({pic:''});return 'Photo removed'},
-readall(){const a=db.get('notes');a.forEach(n=>{if(n.to===R||n.to===s.email)n.read=true});db.set('notes',a);return 'All marked as read'},
-readone(b){const a=db.get('notes'),n=a.find(i=>i.id===b.dataset.id);n.read=!n.read;db.set('notes',a)},
-rmItem(b){cart.splice(+b.dataset.id,1)},clearCart(){cart=[]},print(){window.print()},
-openread(b){const a=db.get('notes');a.find(i=>i.id===b.dataset.id).read=true;db.set('notes',a)},
-checkout(){if(!cart.length)throw Error('Add at least one item');const l=PR(),it=[];for(const c of cart){const p=l.find(x=>x.id===c.pid);if(!p||c.qty>p.qty)throw Error('Not enough stock for '+c.name)}
- cart.forEach(c=>{const p=l.find(x=>x.id===c.pid);p.qty-=c.qty;it.push({pid:p.id,name:p.name,qty:c.qty,price:p.price,total:c.qty*p.price});if(p.qty<=5)['admin','manager'].forEach(r=>note(r,'Low stock: '+p.name+' ('+p.qty+' left)'))});
- db.set('products',l);const total=it.reduce((t,i)=>t+i.total,0),id=uid(),no='R'+String(SA().length+1).padStart(4,'0');log('sales',{...by,time:tm(),id,no,items:it,total});note('cashier','New sale '+no+' by '+s.name+' ('+N(total)+')',id);cart=[];if(R==='cashier')location.hash='receipt/'+id;return 'Sale '+no+' saved: '+N(total)},
-accept(b){const h=db.get('hand');const x=h.find(i=>i.id===b.dataset.id);x.status='Accepted';note(x.by,s.name+' accepted your handover of '+x.name);db.set('hand',h);return 'Handover accepted'}};
-const nav=NAV[R];
-const sb=$('.sidebar'),mb=$('#menu'),sc=$('#scrim'),tg=o=>{sb.classList.toggle('open',o);sc.classList.toggle('show',o);mb.classList.toggle('on',o);mb.setAttribute('aria-expanded',o)};
-mb.onclick=()=>tg(!sb.classList.contains('open'));sc.onclick=()=>tg(false);$('#nav').addEventListener('click',e=>{if(e.target.closest('a'))tg(false)});
-addEventListener('keydown',e=>e.key==='Escape'&&tg(false));addEventListener('resize',()=>innerWidth>820&&tg(false));$('.side-foot').addEventListener('click',e=>{if(e.target.closest('a'))tg(false)});$('#bell').onclick=()=>{location.hash='notifications';tg(false)};$('#bi').innerHTML=ic('notifications');$('#logout').innerHTML=ic('signout')+'<span>Sign out</span>';$('#mail').textContent=s.email;$('#portal').textContent=R[0].toUpperCase()+R.slice(1)+' Portal';
-const setTh=t=>{localStorage.setItem('bl_theme',t);document.documentElement.dataset.theme=t;$('#theme').innerHTML=ic(t==='light'?'sun':'moon')};$('#theme').onclick=()=>setTh(document.documentElement.dataset.theme==='light'?'dark':'light');setTh(document.documentElement.dataset.theme);
-function render(anim){const[v0,a0]=location.hash.slice(1).split('/'),v=nav.includes(v0)||(v0==='receipt'&&rc)?v0:'dashboard',el=$('#view'),cu=U().find(x=>x.email===s.email)||{},on=v==='profile'&&a0&&R==='admin'?'accounts':v==='receipt'?'sales':v;arg=a0||'';
- $('#nav').innerHTML=nav.filter(k=>k!=='profile').map(k=>`<a href="#${k}" class="${k===on?'active':''}">${ic(k)}<span>${LBL[k]}</span></a>`).join('');$('#prof').className=v==='profile'&&on==='profile'?'active':'';$('#prof').innerHTML=ic('profile')+'<span>Profile</span>';$('#sub').textContent=SUB[v]||'';const un=NT().filter(n=>!n.read).length,dt=$('#dot');dt.textContent=un>9?'9+':un;dt.hidden=!un;$('#title').textContent=on==='accounts'&&v==='profile'?'Staff Profile':LBL[v];$('#who').innerHTML=(cu.pic?`<img class="av" src="${cu.pic}" alt="">`:'')+esc(s.name)+' · '+R;
- el.innerHTML=V[v]();if(anim){el.classList.remove('fade');void el.offsetWidth;el.classList.add('fade')}}
-document.addEventListener('submit',async e=>{const a=e.target.dataset.do;if(!a)return;e.preventDefault();try{toast(await A[a](Object.fromEntries(new FormData(e.target))));render()}catch(x){toast(x.message)}});
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]');if(!b)return;try{const m=await C[b.dataset.act](b);if(m)toast(m)}catch(x){toast(x.message)}render()});
-document.addEventListener('change',e=>{const m=e.target.dataset.shift;if(m){const u=U();u.find(x=>x.email===m).shift=e.target.value;db.set('users',u);note(m,'Your shift is now '+e.target.value);toast('Shift updated')}});
-document.addEventListener('input',e=>{const f=e.target.closest('[data-do=sell]');if(f){const p=PR().find(x=>x.id===f.pid.value);$('#tot').textContent=p?'Total: '+N(p.price*(+f.qty.value||0)):''}});
-document.addEventListener('input',e=>{if(e.target.dataset.filter===undefined)return;const q=e.target.value.toLowerCase();document.querySelectorAll('#view tr').forEach(r=>{if(!r.querySelector('th'))r.hidden=!r.textContent.toLowerCase().includes(q)})});
-document.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(e.target.dataset.pic===undefined||!f)return;if(!f.type.startsWith('image/'))return toast('Choose an image file');const img=new Image();img.onload=()=>{const c=document.createElement('canvas'),z=Math.min(img.width,img.height),x=c.getContext('2d');c.width=c.height=200;x.drawImage(img,(img.width-z)/2,(img.height-z)/2,z,z,0,0,200,200);setU({pic:c.toDataURL('image/jpeg',.8)});toast('Photo updated');render()};img.onerror=()=>toast('Could not read that image');img.src=URL.createObjectURL(f)});
-$('#logout').onclick=()=>{localStorage.removeItem('bl_session');location.href='signin.html'};
-window.addEventListener('hashchange',render);render(1);
+
+
+/* ---------------------------------
+   DASHBOARD APPLICATION
+---------------------------------- */
+
+function app(s) {
+
+    const R = s.role;
+    const PR = () => db.get('products');
+    const SA = () => db.get('sales');
+    const EX = () => db.get('exp');
+    const U = () => db.get('users');
+
+    const mine = R === 'kitchen' ? 'Kitchen' :
+        R === 'bakery' ? 'Bakery' : null;
+
+    const own = () => mine ?
+        PR().filter(p => p.cat === mine) : PR();
+
+    const NAV = {
+        admin: ['dashboard', 'products', 'staff', 'sales', 'expenses', 'verify', 'reports', 'accounts', 'notifications', 'settings', 'profile'],
+        manager: ['dashboard', 'inventory', 'verify', 'sales', 'notifications', 'profile'],
+        sales: ['dashboard', 'sell', 'expenses', 'attendance', 'handover', 'notifications', 'profile'],
+        kitchen: ['dashboard', 'stock', 'attendance', 'handover', 'notifications', 'profile'],
+        bakery: ['dashboard', 'baked', 'notifications', 'profile'],
+        cashier: ['dashboard', 'sell', 'sales', 'expenses', 'attendance', 'handover', 'notifications', 'profile']
+    };
+
+    const LBL = {
+        dashboard: 'Dashboard',
+        products: 'Products',
+        staff: 'Staff & Shifts',
+        sales: 'Sales Records',
+        expenses: 'Expenses',
+        verify: 'Stock Verification',
+        reports: 'Reports',
+        inventory: 'Inventory',
+        attendance: 'Attendance',
+        sell: 'Record Sale',
+        handover: 'Handover',
+        stock: 'Kitchen Stock',
+        baked: 'Baked Products',
+        accounts: 'Accounts',
+        settings: 'Settings',
+        profile: 'My Profile',
+        notifications: 'Notifications',
+        receipt: 'Receipt'
+    };
+
+    const sum = a => a.reduce((t, x) => t + x.total, 0);
+
+    const B = (c, t) => `<span class="badge ${c}">${t}</span>`;
+
+    const tbl = (h, r) => `
+        <div class="table-wrap">
+            <table>
+                <tr>${h.map(x => `<th>${x}</th>`).join('')}</tr>
+                ${r.length
+                    ? r.map(x => `<tr>${x.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+                    : `<tr><td colspan="${h.length}" class="empty">Nothing recorded yet</td></tr>`
+                }
+            </table>
+        </div>`;
+
+    const panel = (t, b) => `<section class="panel"><h3>${t}</h3>${b}</section>`;
+
+    const CI = {
+        "Today's Sales": 'sales',
+        'Orders Today': 'sell',
+        'Low Stock': 'alert',
+        'Pending Verification': 'verify',
+        'My Sales Today': 'sales',
+        'My Orders': 'sell',
+        'Products': 'products',
+        'Added Today': 'stock'
+    };
+
+    const card = (a, b) => `
+        <div class="card">
+            <div><p>${a}</p><h2>${b}</h2></div>
+            <span class="tile">${ic(CI[a] || 'dashboard')}</span>
+        </div>`;
+
+    const opts = a => a.map(p =>
+        `<option value="${p.id}">${esc(p.name)} (${p.qty} in stock)</option>`
+    ).join('');
+
+    const form = (a, f, b) =>
+        `<form data-do="${a}">${f}<button class="btn">${b}</button></form>`;
+
+    const inp = (n, l, t = 'text', x = '') =>
+        `<label>${l}<input name="${n}" type="${t}" ${x} required></label>`;
+
+    const sel = (n, l, o) =>
+        `<label>${l}<select name="${n}" required>${o}</select></label>`;
+
+    const prodTable = l => tbl(
+        ['Product', 'Category', 'Price', 'In stock'],
+        l.map(p => [esc(p.name), p.cat, N(p.price), p.qty])
+    );
+
+    const addV = t =>
+        panel(t, form(
+            'addStock',
+            sel('pid', 'Product', opts(own())) +
+            inp('qty', 'Quantity added', 'number', 'min="1"'),
+            'Add to stock'
+        )) +
+        panel('My products', prodTable(own()));
+
+    const V = {
+
+        dashboard() {
+            const sl = SA().filter(x => x.date === day());
+            const my = sl.filter(x => x.by === s.email);
+            const low = own().filter(p => p.qty <= 5);
+            const pend = db.get('verifs').filter(v => v.status === 'Discrepancy').length;
+
+            const c = R === 'admin' || R === 'manager'
+                ? [
+                    card("Today's Sales", N(sum(sl))),
+                    card('Orders Today', sl.length),
+                    card('Low Stock', low.length),
+                    card('Pending Verification', pend)
+                ]
+                : R === 'cashier'
+                    ? [
+                        card("Today's Sales", N(sum(sl))),
+                        card('Orders Today', sl.length),
+                        card('My Sales Today', N(sum(my))),
+                        card('Low Stock', low.length)
+                    ]
+                    : R === 'sales'
+                        ? [
+                            card('My Sales Today', N(sum(my))),
+                            card('My Orders', my.length),
+                            card('Low Stock', low.length)
+                        ]
+                        : [
+                            card('Products', own().length),
+                            card('Low Stock', low.length),
+                            card('Added Today', db.get('adds').filter(a =>
+                                a.date === day() && a.by === s.email
+                            ).length)
+                        ];
+
+            return `<section class="grid">${c.join('')}</section>` +
+                panel(
+                    'Low stock (5 or fewer)',
+                    tbl(
+                        ['Product', 'Category', 'In stock'],
+                        low.map(p => [esc(p.name), p.cat, p.qty])
+                    )
+                );
+        },
+
+        products: () =>
+            `<div class="two">` +
+            panel(
+                'Add product',
+                form(
+                    'addProduct',
+                    inp('name', 'Product name') +
+                    sel('cat', 'Category',
+                        '<option>Kitchen</option><option>Bakery</option><option>Drinks</option>'
+                    ) +
+                    inp('price', 'Selling price (₦)', 'number', 'min="0" step="0.01"') +
+                    inp('qty', 'Opening stock', 'number', 'min="0"'),
+                    'Save product'
+                )
+            ) +
+            panel(
+                'Correct stock (logged)',
+                form(
+                    'adjust',
+                    sel('pid', 'Product', opts(PR())) +
+                    inp('qty', 'New quantity', 'number', 'min="0"') +
+                    inp('reason', 'Reason'),
+                    'Update stock'
+                )
+            ) +
+            `</div>` +
+            panel('All products', prodTable(PR())),
+
+        inventory: () => panel('Inventory', prodTable(PR())),
+
+        staff() {
+            const at = db.get('att');
+
+            return panel(
+                'Staff, shifts & attendance',
+                tbl(
+                    ['Name', 'Role', 'Shift', 'Excused until', 'Today', 'Actions'],
+                    U().filter(u => u.role !== 'admin').map(u => {
+                        const sh = ['sales', 'kitchen', 'cashier'].includes(u.role);
+                        const pr = at.some(a => a.email === u.email && a.date === day());
+
+                        return [
+                            esc(u.name),
+                            u.role,
+                            sh
+                                ? `<select data-shift="${u.email}">${['Morning', 'Evening'].map(x =>
+                                    `<option${u.shift === x ? ' selected' : ''}>${x}</option>`
+                                ).join('')}</select>`
+                                : '—',
+                            u.excusedUntil || '—',
+                            pr ? B('done', 'Present') : B('new', 'Absent'),
+                            `<div class="row">
+                                ${pr ? '' : `<button class="btn sm" data-act="mark" data-id="${u.email}">Mark present</button>`}
+                                <input class="days" type="number" min="1" max="30" placeholder="days">
+                                <button class="btn sm light" data-act="excuse" data-id="${u.email}">Excuse</button>
+                            </div>`
+                        ];
+                    })
+                )
+            );
+        },
+
+        sales: () => panel(
+            'Sales records',
+            tbl(
+                ['Date', 'Time', 'Receipt', 'Items', 'Total', 'Sold by'].concat(rc ? [''] : []),
+                SA().slice().reverse().map(x =>
+                    [x.date, x.time, x.no || '—', list(x), N(x.total), esc(x.byName)]
+                        .concat(rc ? [
+                            x.id ? `<a class="btn sm light" href="#receipt/${x.id}">Receipt</a>` : '—'
+                        ] : [])
+                )
+            )
+        ),
+
+        receipt() {
+            const x = SA().find(i => i.id === arg);
+
+            if (!x) {
+                return panel('Receipt', '<p class="muted">Sale not found.</p>');
+            }
+
+            return `
+                <div class="rcpt-bar">
+                    <a class="btn sm light" href="#sales">Back to sales</a>
+                    <button class="btn sm" data-act="print">Print receipt</button>
+                </div>
+                <section class="panel receipt">
+                    <h2>BLUERICH</h2>
+                    <p class="muted">Receipt ${x.no || x.id}</p>
+                    <p class="muted">${x.date} · ${x.time}</p>
+                    <p class="muted">Served by ${esc(x.byName)}</p>
+            ` +
+            tbl(
+                ['Item', 'Qty', 'Price', 'Total'],
+                items(x).map(i => [esc(i.name), i.qty, N(i.price), N(i.total)])
+            ) +
+            `
+                    <p class="grand">Total: ${N(x.total)}</p>
+                    <p class="muted c">Thank you for your purchase</p>
+                </section>`;
+        },
+
+        sell() {
+            const l = SA().filter(x =>
+                x.date === day() && x.by === s.email
+            ).reverse();
+
+            const tot = cart.reduce((t, c) => t + c.qty * c.price, 0);
+            const d = cart.length ? '' : ' disabled';
+
+            return `<div class="two">` +
+                panel(
+                    'New sale (add one or more products)',
+                    form(
+                        'addItem',
+                        sel('pid', 'Product', opts(PR().filter(p => p.qty > 0))) +
+                        inp('qty', 'Quantity', 'number', 'min="1" value="1"'),
+                        'Add item'
+                    ) +
+                    `<br><h3>Items in this sale</h3>` +
+                    tbl(
+                        ['Product', 'Qty', 'Price', 'Total', ''],
+                        cart.map((c, n) => [
+                            esc(c.name),
+                            c.qty,
+                            N(c.price),
+                            N(c.qty * c.price),
+                            `<button class="btn sm danger" data-act="rmItem" data-id="${n}">Remove</button>`
+                        ])
+                    ) +
+                    `<p class="grand">Total: ${N(tot)}</p>
+                    <div class="row">
+                        <button class="btn" data-act="checkout"${d}>Complete sale</button>
+                        <button class="btn light" data-act="clearCart"${d}>Clear</button>
+                    </div>`
+                ) +
+                panel(
+                    'My sales today',
+                    tbl(
+                        ['Time', 'Items', 'Total'],
+                        l.map(x => [x.time, list(x), N(x.total)])
+                    )
+                ) +
+                `</div>`;
+        },
+
+        expenses() {
+            const l = EX().filter(x =>
+                R === 'admin' || x.by === s.email
+            ).reverse();
+
+            return (
+                ['sales', 'cashier'].includes(R)
+                    ? panel(
+                        'Record expense',
+                        form(
+                            'expense',
+                            inp('item', 'What was it for?') +
+                            inp('amount', 'Amount (₦)', 'number', 'min="1" step="0.01"'),
+                            'Save expense'
+                        )
+                    )
+                    : ''
+            ) +
+            panel(
+                'Expenses',
+                tbl(
+                    ['Date', 'Item', 'Amount', 'By'],
+                    l.map(x => [x.date, esc(x.item), N(x.amount), esc(x.byName)])
+                )
+            );
+        },
+
+        verify() {
+            const v = db.get('verifs').slice().reverse();
+            const fx = db.get('fixes').slice().reverse();
+            const ad = R === 'admin';
+
+            return (
+                R === 'manager'
+                    ? panel(
+                        'Verify physical count',
+                        form(
+                            'verify',
+                            sel('pid', 'Product', opts(PR())) +
+                            inp('cnt', 'Physical count', 'number', 'min="0"'),
+                            'Submit count'
+                        )
+                    )
+                    : ''
+            ) +
+            panel(
+                'Verification records',
+                tbl(
+                    ['Date', 'Product', 'Expected', 'Counted', 'Difference', 'Status', 'By'].concat(ad ? ['Action'] : []),
+                    v.map(x =>
+                        [
+                            x.date,
+                            esc(x.name),
+                            x.exp,
+                            x.cnt,
+                            x.cnt - x.exp,
+                            B(
+                                x.status === 'Discrepancy' ? 'progress' :
+                                x.status === 'Resolved' ? 'done' : 'new',
+                                x.status
+                            ),
+                            esc(x.byName)
+                        ].concat(ad ? [
+                            x.status === 'Discrepancy'
+                                ? `<button class="btn sm" data-act="resolve" data-id="${x.id}">Correct stock</button>`
+                                : '—'
+                        ] : [])
+                    )
+                )
+            ) +
+            (
+                ad
+                    ? panel(
+                        'Correction history',
+                        tbl(
+                            ['Date', 'Product', 'Old', 'New', 'Reason', 'By'],
+                            fx.map(x => [
+                                x.date, esc(x.name), x.old, x.nw,
+                                esc(x.reason), esc(x.byName)
+                            ])
+                        )
+                    )
+                    : ''
+            );
+        },
+
+        reports() {
+            const d = {};
+            const g = k => d[k] ??= { s: 0, n: 0, e: 0 };
+
+            SA().forEach(x => {
+                const r = g(x.date);
+                r.s += x.total;
+                r.n++;
+            });
+
+            EX().forEach(x => g(x.date).e += +x.amount);
+
+            return panel(
+                'Daily report',
+                tbl(
+                    ['Date', 'Orders', 'Sales', 'Expenses', 'Net'],
+                    Object.keys(d).sort().reverse().map(k => [
+                        k, d[k].n, N(d[k].s), N(d[k].e),
+                        N(d[k].s - d[k].e)
+                    ])
+                )
+            );
+        },
+
+        attendance() {
+            const st = ['sales', 'kitchen', 'cashier'].includes(R);
+            const u = U().find(x => x.email === s.email) || {};
+            const a = db.get('att').filter(x => !st || x.email === s.email).reverse();
+
+            return (
+                st
+                    ? panel(
+                        'Mark attendance',
+                        `<p class="muted">Shift: ${u.shift || '—'}. Your device location is checked. If it fails, ask the admin to mark you present.</p><br><button class="btn" data-act="here">I'm here</button>`
+                    )
+                    : ''
+            ) +
+            panel(
+                'Attendance records',
+                tbl(
+                    ['Date', 'Time', 'Staff', 'Method'],
+                    a.map(x => [x.date, x.time, esc(x.name), x.method])
+                )
+            );
+        },
+
+        handover() {
+            const h = db.get('hand').slice().reverse();
+
+            return panel(
+                'Hand over closing stock',
+                form(
+                    'hand',
+                    sel('pid', 'Product', opts(own())) +
+                    inp('cnt', 'Closing count', 'number', 'min="0"'),
+                    'Submit handover'
+                )
+            ) +
+            panel(
+                'Handovers',
+                tbl(
+                    ['Date', 'Product', 'Expected', 'Counted', 'From', 'Status', ''],
+                    h.map(x => [
+                        x.date,
+                        esc(x.name),
+                        x.exp,
+                        x.cnt,
+                        esc(x.byName),
+                        B(x.status === 'Accepted' ? 'done' : 'progress', x.status),
+                        x.status === 'Pending' && x.by !== s.email
+                            ? `<button class="btn sm" data-act="accept" data-id="${x.id}">Accept</button>`
+                            : '—'
+                    ])
+                )
+            );
+        },
+
+        profile() {
+            const vw = R === 'admin' && arg
+                ? decodeURIComponent(arg)
+                : s.email;
+
+            const self = vw === s.email;
+            const u = U().find(x => x.email === vw);
+
+            if (!u) {
+                return panel('Profile', '<p class="muted">Account not found.</p>');
+            }
+
+            const track = ['sales', 'kitchen', 'cashier'].includes(u.role);
+            const at = db.get('att').filter(a => a.email === u.email).reverse();
+
+            const head = `
+                <div class="prof">
+                    <div class="avatar">
+                        ${u.pic
+                            ? `<img src="${u.pic}" alt="">`
+                            : esc(u.name[0] || '?').toUpperCase()
+                        }
+                    </div>
+                    <div>
+                        <h2>${esc(u.name)}</h2>
+                        <p class="muted">${esc(u.email)} · ${u.role}${track ? ' · ' + u.shift + ' shift' : ''}</p>
+                        <br>
+                        <div class="row">
+                            ${self
+                                ? `
+                                    <label class="btn sm light">
+                                        Upload photo
+                                        <input type="file" accept="image/*" data-pic hidden>
+                                    </label>
+                                    ${u.pic ? '<button class="btn sm danger" data-act="rmpic">Remove photo</button>' : ''}
+                                `
+                                : '<a class="btn sm light" href="#accounts">Back to accounts</a>'
+                            }
+                        </div>
+                    </div>
+                </div>`;
+
+            const info = self
+                ? form(
+                    'profile',
+                    `
+                        <label>Full name<input name="name" value="${esc(u.name)}" required></label>
+                        <label>Phone<input name="phone" value="${esc(u.phone || '')}"></label>
+                        <label>Address<input name="address" value="${esc(u.address || '')}"></label>
+                        <label>About me<textarea name="about" rows="3">${esc(u.about || '')}</textarea></label>
+                    `,
+                    'Save profile'
+                )
+                : tbl(
+                    ['Phone', 'Address', 'About', 'Joined'],
+                    [[
+                        esc(u.phone || '—'),
+                        esc(u.address || '—'),
+                        esc(u.about || '—'),
+                        u.joined || '—'
+                    ]]
+                );
+
+            return panel('Profile', head) +
+                panel(self ? 'My information' : 'Information', info) +
+                (
+                    track
+                        ? panel(
+                            'Attendance record (' + at.length + ' day' + (at.length === 1 ? '' : 's') + ')',
+                            tbl(
+                                ['Date', 'Time', 'Method'],
+                                at.map(x => [x.date, x.time, x.method])
+                            )
+                        )
+                        : ''
+                );
+        },
+
+        notifications() {
+            const l = NT().slice().reverse();
+
+            return panel(
+                'All notifications',
+                `<button class="btn sm light" data-act="readall">Mark all as read</button><br><br>` +
+                (
+                    l.length
+                        ? l.map(n => `
+                            <${n.sale ? 'a' : 'div'} class="note${n.read ? '' : ' unread'}"
+                                ${n.sale ? `href="#receipt/${n.sale}" data-act="openread"` : 'data-act="readone"'}
+                                data-id="${n.id}">
+                                <span class="nd"></span>
+                                <div>
+                                    <p>${esc(n.text)}</p>
+                                    <small>${n.date} · ${n.time}</small>
+                                    ${n.sale ? '<br><small class="lnk">View and print receipt →</small>' : ''}
+                                </div>
+                            </${n.sale ? 'a' : 'div'}>
+                        `).join('')
+                        : '<p class="empty">No notifications yet</p>'
+                )
+            );
+        },
+
+        accounts() {
+            const at = db.get('att');
+            const sa = SA();
+            const l = U().filter(u => u.email !== s.email);
+
+            return panel(
+                'All accounts',
+                `<label>Search<input data-filter placeholder="Name, email or role"></label><br>` +
+                tbl(
+                    ['Name', 'Email', 'Role', 'Shift', 'Status', 'Joined', 'Present today', 'Sales', 'Action'],
+                    l.map(u => {
+                        const m = sa.filter(x => x.by === u.email);
+
+                        return [
+                            esc(u.name),
+                            esc(u.email),
+                            u.role,
+                            ['sales', 'kitchen', 'cashier'].includes(u.role) ? u.shift : '—',
+                            u.excusedUntil >= day()
+                                ? B('progress', 'Excused to ' + u.excusedUntil)
+                                : B('done', 'Active'),
+                            u.joined || '—',
+                            at.some(a => a.email === u.email && a.date === day())
+                                ? B('done', 'Yes')
+                                : B('new', 'No'),
+                            ['sales', 'cashier'].includes(u.role)
+                                ? m.length + ' · ' + N(sum(m))
+                                : '—',
+                            `<div class="row">
+                                <a class="btn sm light" href="#profile/${encodeURIComponent(u.email)}">View</a>
+                                <button class="btn sm danger" data-act="delUser" data-id="${u.email}">Delete</button>
+                            </div>`
+                        ];
+                    })
+                )
+            ) +
+            panel(
+                'Delete all other accounts',
+                `<p class="muted">Removes all ${l.length} account(s) listed above. Your own account stays.</p>` +
+                form(
+                    'delAll',
+                    inp('password', 'Confirm your password', 'password'),
+                    'Delete all other accounts'
+                ).replace('class="btn"', 'class="btn danger"')
+            );
+        },
+
+        settings: () =>
+            panel(
+                'Account settings',
+                `<p class="muted">Signed in as ${esc(s.name)} (${esc(s.email)}). Products, sales and other business records are kept when accounts are deleted.</p>`
+            ) +
+            panel(
+                'Delete my account',
+                `<p class="muted">Removes your admin account and signs you out. If no other admin exists, nobody can manage the app until a new admin signs up.</p>` +
+                form(
+                    'delMe',
+                    inp('password', 'Confirm your password', 'password'),
+                    'Delete my account'
+                ).replace('class="btn"', 'class="btn danger"')
+            ),
+
+        stock: () => addV('Add kitchen stock'),
+        baked: () => addV('Record baked products')
+    };
+
+
+    const log = (k, o) => db.set(k, [...db.get(k), o]);
+
+    const by = {
+        by: s.email,
+        byName: s.name,
+        date: day()
+    };
+
+    const NT = () => db.get('notes').filter(n =>
+        n.to === R || n.to === s.email
+    );
+
+    const note = (to, t, sale) =>
+        log('notes', {
+            id: uid(),
+            to,
+            text: t,
+            sale,
+            date: day(),
+            time: tm(),
+            read: false
+        });
+
+    const SUB = {
+        dashboard: "Today's overview",
+        notifications: 'Alerts and updates for you',
+        profile: 'Your photo and personal details'
+    };
+
+    const prod = id => {
+        const l = PR();
+        const p = l.find(x => x.id === id);
+
+        if (!p) throw Error('Choose a product');
+
+        return [l, p];
+    };
+
+    const markAtt = (email, method) => {
+        const u = U().find(x => x.email === email);
+
+        if (!u) throw Error('Staff account not found');
+
+        if (u.excusedUntil >= day()) {
+            throw Error('Excused until ' + u.excusedUntil);
+        }
+
+        if (db.get('att').some(a => a.email === email && a.date === day())) {
+            throw Error('Already marked present today');
+        }
+
+        log('att', {
+            email,
+            name: u.name,
+            date: day(),
+            time: tm(),
+            method
+        });
+
+        if (method === 'Admin') {
+            note(email, 'The admin marked you present today');
+        }
+
+        return 'Attendance marked';
+    };
+
+    const pw = async f => {
+        if (await hash(f.password) !== U().find(x =>
+            x.email === s.email
+        )?.pw) {
+            throw Error('Wrong password');
+        }
+    };
+
+    const setU = o => {
+        const u = U();
+        Object.assign(u.find(x => x.email === s.email), o);
+        db.set('users', u);
+    };
+
+    let arg = '';
+    let cart = [];
+
+    const items = x => x.items || [{
+        name: x.name,
+        qty: x.qty,
+        price: x.qty ? x.total / x.qty : 0,
+        total: x.total
+    }];
+
+    const rc = R === 'cashier';
+    const list = x => items(x).map(i =>
+        esc(i.name) + ' ×' + i.qty
+    ).join(', ');
+
+
+    const A = {
+
+        addProduct(f) {
+            log('products', {
+                id: uid(),
+                name: f.name.trim(),
+                cat: f.cat,
+                price: +f.price,
+                qty: +f.qty
+            });
+
+            return 'Product saved';
+        },
+
+        adjust(f) {
+            const [l, p] = prod(f.pid);
+
+            log('fixes', {
+                ...by,
+                name: p.name,
+                old: p.qty,
+                nw: +f.qty,
+                reason: f.reason
+            });
+
+            p.qty = +f.qty;
+            db.set('products', l);
+
+            return 'Stock updated and logged';
+        },
+
+        addItem(f) {
+            const [, p] = prod(f.pid);
+            const q = +f.qty;
+            const c = cart.find(x => x.pid === p.id);
+            const h = c ? c.qty : 0;
+
+            if (q < 1 || h + q > p.qty) {
+                throw Error('Only ' + (p.qty - h) + ' more in stock');
+            }
+
+            c ? c.qty += q : cart.push({
+                pid: p.id,
+                name: p.name,
+                price: p.price,
+                qty: q
+            });
+
+            return 'Item added';
+        },
+
+        sell(f) {
+            const [l, p] = prod(f.pid);
+            const q = +f.qty;
+
+            if (q < 1 || q > p.qty) {
+                throw Error('Only ' + p.qty + ' in stock');
+            }
+
+            p.qty -= q;
+            db.set('products', l);
+
+            log('sales', {
+                ...by,
+                time: tm(),
+                pid: p.id,
+                name: p.name,
+                qty: q,
+                total: q * p.price
+            });
+
+            if (p.qty <= 5) {
+                ['admin', 'manager'].forEach(r =>
+                    note(r, 'Low stock: ' + p.name + ' (' + p.qty + ' left)')
+                );
+            }
+
+            return 'Sale saved: ' + N(q * p.price);
+        },
+
+        expense(f) {
+            log('exp', {
+                ...by,
+                item: f.item,
+                amount: +f.amount
+            });
+
+            return 'Expense saved';
+        },
+
+        addStock(f) {
+            const [l, p] = prod(f.pid);
+
+            p.qty += +f.qty;
+            db.set('products', l);
+
+            log('adds', {
+                ...by,
+                pid: p.id,
+                qty: +f.qty
+            });
+
+            return 'Stock added';
+        },
+
+        verify(f) {
+            const [, p] = prod(f.pid);
+            const c = +f.cnt;
+
+            log('verifs', {
+                ...by,
+                id: uid(),
+                name: p.name,
+                pid: p.id,
+                exp: p.qty,
+                cnt: c,
+                status: c === p.qty ? 'Matched' : 'Discrepancy'
+            });
+
+            if (c !== p.qty) {
+                note('admin', 'Stock discrepancy on ' + p.name +
+                    ': expected ' + p.qty + ', counted ' + c);
+            }
+
+            return c === p.qty
+                ? 'Counts match'
+                : 'Discrepancy reported to admin';
+        },
+
+        async delAll(f) {
+            await pw(f);
+
+            if (!confirm('Delete ALL other accounts? This cannot be undone.')) {
+                throw Error('Cancelled');
+            }
+
+            db.set('users', U().filter(u => u.email === s.email));
+
+            return 'All other accounts deleted';
+        },
+
+        async delMe(f) {
+            await pw(f);
+
+            if (!confirm('Delete your own account? You will be signed out.')) {
+                throw Error('Cancelled');
+            }
+
+            db.set('users', U().filter(u => u.email !== s.email));
+
+            await fetch('/api/logout', { method: 'POST' });
+
+            toast('Account deleted');
+            setTimeout(() => {
+                window.location.href = '/signup';
+            }, 900);
+
+            return 'Account deleted';
+        },
+
+        profile(f) {
+            const name = f.name.trim();
+
+            if (!name) throw Error('Name is required');
+
+            setU({
+                name,
+                phone: f.phone.trim(),
+                address: f.address.trim(),
+                about: f.about.trim()
+            });
+
+            s.name = by.byName = name;
+            db.set('session', { ...s });
+
+            return 'Profile saved';
+        },
+
+        hand(f) {
+            const [, p] = prod(f.pid);
+
+            log('hand', {
+                ...by,
+                id: uid(),
+                name: p.name,
+                exp: p.qty,
+                cnt: +f.cnt,
+                status: 'Pending'
+            });
+
+            return 'Handover submitted';
+        }
+    };
+
+
+    const C = {
+
+        mark: b => markAtt(b.dataset.id, 'Admin'),
+
+        here: () => new Promise((ok, no) => {
+            if (!navigator.geolocation) {
+                return no(Error('Location not supported. Ask the admin to mark you present.'));
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                () => {
+                    try {
+                        ok(markAtt(s.email, 'GPS'));
+                    } catch (x) {
+                        no(x);
+                    }
+                },
+                () => no(Error('Location failed. Ask the admin to mark you present.')),
+                { timeout: 8000 }
+            );
+        }),
+
+        excuse(b) {
+            const n = Math.floor(+b.previousElementSibling.value);
+
+            if (!(n >= 1 && n <= 30)) {
+                throw Error('Enter 1 to 30 days');
+            }
+
+            const d = new Date();
+            d.setDate(d.getDate() + n);
+
+            const u = U();
+            u.find(x => x.email === b.dataset.id).excusedUntil =
+                d.toISOString().slice(0, 10);
+
+            db.set('users', u);
+
+            note(b.dataset.id, 'You have been excused for ' + n + ' days');
+
+            return 'Excused for ' + n + ' days';
+        },
+
+        resolve(b) {
+            const v = db.get('verifs');
+            const x = v.find(i => i.id === b.dataset.id);
+            const r = prompt('Reason for the correction?');
+
+            if (!r) throw Error('A reason is required');
+
+            const [l, p] = prod(x.pid);
+
+            log('fixes', {
+                ...by,
+                name: p.name,
+                old: p.qty,
+                nw: x.cnt,
+                reason: r
+            });
+
+            p.qty = x.cnt;
+            x.status = 'Resolved';
+
+            note('manager', 'Stock corrected for ' + p.name);
+
+            db.set('products', l);
+            db.set('verifs', v);
+
+            return 'Stock corrected';
+        },
+
+        delUser(b) {
+            const u = U().find(x => x.email === b.dataset.id);
+
+            if (!u || !confirm(
+                'Delete ' + u.name + ' (' + u.role + ')? This cannot be undone.'
+            )) {
+                return;
+            }
+
+            db.set('users', U().filter(x => x.email !== u.email));
+
+            return u.name + ' deleted';
+        },
+
+        rmpic() {
+            setU({ pic: '' });
+            return 'Photo removed';
+        },
+
+        readall() {
+            const a = db.get('notes');
+
+            a.forEach(n => {
+                if (n.to === R || n.to === s.email) {
+                    n.read = true;
+                }
+            });
+
+            db.set('notes', a);
+
+            return 'All marked as read';
+        },
+
+        readone(b) {
+            const a = db.get('notes');
+            const n = a.find(i => i.id === b.dataset.id);
+
+            n.read = !n.read;
+            db.set('notes', a);
+        },
+
+        rmItem(b) {
+            cart.splice(+b.dataset.id, 1);
+        },
+
+        clearCart() {
+            cart = [];
+        },
+
+        print() {
+            window.print();
+        },
+
+        openread(b) {
+            const a = db.get('notes');
+            a.find(i => i.id === b.dataset.id).read = true;
+            db.set('notes', a);
+        },
+
+        checkout() {
+            if (!cart.length) {
+                throw Error('Add at least one item');
+            }
+
+            const l = PR();
+            const it = [];
+
+            for (const c of cart) {
+                const p = l.find(x => x.id === c.pid);
+
+                if (!p || c.qty > p.qty) {
+                    throw Error('Not enough stock for ' + c.name);
+                }
+            }
+
+            cart.forEach(c => {
+                const p = l.find(x => x.id === c.pid);
+
+                p.qty -= c.qty;
+
+                it.push({
+                    pid: p.id,
+                    name: p.name,
+                    qty: c.qty,
+                    price: p.price,
+                    total: c.qty * p.price
+                });
+
+                if (p.qty <= 5) {
+                    ['admin', 'manager'].forEach(r =>
+                        note(r, 'Low stock: ' + p.name + ' (' + p.qty + ' left)')
+                    );
+                }
+            });
+
+            db.set('products', l);
+
+            const total = it.reduce((t, i) => t + i.total, 0);
+            const id = uid();
+            const no = 'R' + String(SA().length + 1).padStart(4, '0');
+
+            log('sales', {
+                ...by,
+                time: tm(),
+                id,
+                no,
+                items: it,
+                total
+            });
+
+            note(
+                'cashier',
+                'New sale ' + no + ' by ' + s.name + ' (' + N(total) + ')',
+                id
+            );
+
+            cart = [];
+
+            if (R === 'cashier') {
+                location.hash = 'receipt/' + id;
+            }
+
+            return 'Sale ' + no + ' saved: ' + N(total);
+        },
+
+        accept(b) {
+            const h = db.get('hand');
+            const x = h.find(i => i.id === b.dataset.id);
+
+            x.status = 'Accepted';
+
+            note(x.by, s.name + ' accepted your handover of ' + x.name);
+
+            db.set('hand', h);
+
+            return 'Handover accepted';
+        }
+    };
+
+
+    const nav = NAV[R];
+
+    const sb = $('.sidebar');
+    const mb = $('#menu');
+    const sc = $('#scrim');
+
+    const tg = o => {
+        sb.classList.toggle('open', o);
+        sc.classList.toggle('show', o);
+        mb.classList.toggle('on', o);
+        mb.setAttribute('aria-expanded', o);
+    };
+
+    mb.onclick = () => tg(!sb.classList.contains('open'));
+    sc.onclick = () => tg(false);
+
+    $('#nav').addEventListener('click', e => {
+        if (e.target.closest('a')) tg(false);
+    });
+
+    addEventListener('keydown', e => e.key === 'Escape' && tg(false));
+    addEventListener('resize', () => innerWidth > 820 && tg(false));
+
+    $('.side-foot').addEventListener('click', e => {
+        if (e.target.closest('a')) tg(false);
+    });
+
+    $('#bell').onclick = () => {
+        location.hash = 'notifications';
+        tg(false);
+    };
+
+    $('#bi').innerHTML = ic('notifications');
+    $('#logout').innerHTML = ic('signout') + '<span>Sign out</span>';
+    $('#mail').textContent = s.email;
+    $('#portal').textContent = R[0].toUpperCase() + R.slice(1) + ' Portal';
+
+    const setTh = t => {
+        localStorage.setItem('bl_theme', t);
+        document.documentElement.dataset.theme = t;
+        $('#theme').innerHTML = ic(t === 'light' ? 'sun' : 'moon');
+    };
+
+    $('#theme').onclick = () =>
+        setTh(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+
+    setTh(document.documentElement.dataset.theme);
+
+
+    function render(anim) {
+        const [v0, a0] = location.hash.slice(1).split('/');
+
+        const v = nav.includes(v0) || (v0 === 'receipt' && rc)
+            ? v0
+            : 'dashboard';
+
+        const el = $('#view');
+        const cu = U().find(x => x.email === s.email) || {};
+
+        const on = v === 'profile' && a0 && R === 'admin'
+            ? 'accounts'
+            : v === 'receipt'
+                ? 'sales'
+                : v;
+
+        arg = a0 || '';
+
+        $('#nav').innerHTML = nav
+            .filter(k => k !== 'profile')
+            .map(k => `
+                <a href="#${k}" class="${k === on ? 'active' : ''}">
+                    ${ic(k)}
+                    <span>${LBL[k]}</span>
+                </a>
+            `).join('');
+
+        $('#prof').className =
+            v === 'profile' && on === 'profile' ? 'active' : '';
+
+        $('#prof').innerHTML = ic('profile') + '<span>Profile</span>';
+
+        $('#sub').textContent = SUB[v] || '';
+
+        const un = NT().filter(n => !n.read).length;
+        const dt = $('#dot');
+
+        dt.textContent = un > 9 ? '9+' : un;
+        dt.hidden = !un;
+
+        $('#title').textContent =
+            on === 'accounts' && v === 'profile'
+                ? 'Staff Profile'
+                : LBL[v];
+
+        $('#who').innerHTML =
+            (cu.pic ? `<img class="av" src="${cu.pic}" alt="">` : '') +
+            esc(s.name) + ' · ' + R;
+
+        el.innerHTML = V[v]();
+
+        if (anim) {
+            el.classList.remove('fade');
+            void el.offsetWidth;
+            el.classList.add('fade');
+        }
+    }
+
+
+    document.addEventListener('submit', async e => {
+        const a = e.target.dataset.do;
+
+        if (!a) return;
+
+        e.preventDefault();
+
+        try {
+            toast(await A[a](Object.fromEntries(new FormData(e.target))));
+            render();
+        } catch (x) {
+            toast(x.message);
+        }
+    });
+
+
+    document.addEventListener('click', async e => {
+        const b = e.target.closest('[data-act]');
+
+        if (!b) return;
+
+        try {
+            const m = await C[b.dataset.act](b);
+
+            if (m) toast(m);
+        } catch (x) {
+            toast(x.message);
+        }
+
+        render();
+    });
+
+
+    document.addEventListener('change', e => {
+        const m = e.target.dataset.shift;
+
+        if (m) {
+            const u = U();
+            u.find(x => x.email === m).shift = e.target.value;
+
+            db.set('users', u);
+
+            note(m, 'Your shift is now ' + e.target.value);
+
+            toast('Shift updated');
+        }
+    });
+
+
+    document.addEventListener('input', e => {
+        const f = e.target.closest('[data-do=sell]');
+
+        if (f) {
+            const p = PR().find(x => x.id === f.pid.value);
+
+            $('#tot').textContent = p
+                ? 'Total: ' + N(p.price * (+f.qty.value || 0))
+                : '';
+        }
+    });
+
+
+    document.addEventListener('input', e => {
+        if (e.target.dataset.filter === undefined) return;
+
+        const q = e.target.value.toLowerCase();
+
+        document.querySelectorAll('#view tr').forEach(r => {
+            if (!r.querySelector('th')) {
+                r.hidden = !r.textContent.toLowerCase().includes(q);
+            }
+        });
+    });
+
+
+    document.addEventListener('change', e => {
+        const f = e.target.files && e.target.files[0];
+
+        if (e.target.dataset.pic === undefined || !f) return;
+
+        if (!f.type.startsWith('image/')) {
+            return toast('Choose an image file');
+        }
+
+        const img = new Image();
+
+        img.onload = () => {
+            const c = document.createElement('canvas');
+            const z = Math.min(img.width, img.height);
+            const x = c.getContext('2d');
+
+            c.width = c.height = 200;
+
+            x.drawImage(
+                img,
+                (img.width - z) / 2,
+                (img.height - z) / 2,
+                z,
+                z,
+                0,
+                0,
+                200,
+                200
+            );
+
+            setU({ pic: c.toDataURL('image/jpeg', .8) });
+
+            toast('Photo updated');
+            render();
+        };
+
+        img.onerror = () => toast('Could not read that image');
+        img.src = URL.createObjectURL(f);
+    });
+
+
+    /* LOGOUT */
+
+    $('#logout').onclick = async () => {
+        try {
+            const response = await fetch('/api/logout', {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            localStorage.removeItem('bl_session');
+
+            window.location.href = result.redirect || '/signin';
+
+        } catch (error) {
+            toast('Could not sign out. Please try again.');
+        }
+    };
+
+
+    window.addEventListener('hashchange', render);
+
+    render(1);
+}
+
+
+/* ---------------------------------
+   DASHBOARD SESSION CHECK
+---------------------------------- */
+
+if (P !== 'signin' && P !== 'signup') {
+
+    fetch('/api/session')
+        .then(response => response.json())
+        .then(data => {
+
+            if (!data.authenticated) {
+                window.location.href = '/signin';
+                return;
+            }
+
+            const user = data.user;
+
+            const routes = {
+                admin: '/admin',
+                sales: '/sales_account',
+                manager: '/manager',
+                cashier: '/cashier',
+                kitchen: '/kitchen',
+                bakery: '/bakery'
+            };
+
+            const currentRoute = routes[user.role];
+
+            if (!currentRoute || currentRoute !== window.location.pathname) {
+                window.location.href = currentRoute || '/signin';
+                return;
+            }
+
+            /*
+             * Keep the current dashboard's localStorage user data
+             * available while we migrate business features later.
+             */
+
+            const users = db.get('users');
+            const existing = users.find(u => u.email === user.email);
+
+            if (existing) {
+                Object.assign(existing, {
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                });
+            } else {
+                users.push({
+                    name: user.name,
+                    email: user.email,
+                    role: user.role,
+                    joined: day()
+                });
+            }
+
+            db.set('users', users);
+
+            app(user);
+
+        })
+        .catch(() => {
+            window.location.href = '/signin';
+        });
 }

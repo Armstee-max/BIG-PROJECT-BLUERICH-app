@@ -41,7 +41,7 @@
           /><span>BLUERICH<small>Sales &amp; Operations</small></span>
         </div>
         <h3>Create account</h3>
-        <form>
+        <form method="post" action="{{ url_for('sign_up') }}">
           <label>Full name<input name="name" type="text" required /></label
           ><label>Email<input name="email" type="email" required /></label
           ><label
