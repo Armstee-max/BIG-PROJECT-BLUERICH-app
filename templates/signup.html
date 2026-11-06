@@ -25,7 +25,7 @@
         <div class="bar"></div>
         <p>Powered by</p>
         <img
-          src="assets/powered-by-logo.png"
+          src="{{ url_for('static', filename='images/dgw_logo.png') }}"
           alt=""
           onerror="this.style.opacity = 0"
         />
@@ -47,6 +47,7 @@
           ><label
             >Role<select name="role" required>
               <option value="sales">Sales staff</option>
+              <option value="cashier">Cashier</option>
               <option value="kitchen">Kitchen staff</option>
               <option value="bakery">Bakery staff</option>
               <option value="manager">Manager</option>
