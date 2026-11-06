@@ -4,19 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin | BLUERICH</title>
-    <link
-      rel="icon"
-      type="image/png"
-      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
-    />
-    <link
-      rel="apple-touch-icon"
-      href="{{ url_for('static', filename='images/bluerich logo.png') }}"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/bluerich logo.png') }}" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/bluerich logo.png') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body data-page="app" data-role="admin">
     <div id="loader">
@@ -33,15 +23,32 @@
     </div>
     <div class="scrim" id="scrim"></div>
     <aside class="sidebar">
-      <div class="logo-box">
-        <img
-          src="{{ url_for('static', filename='images/bluerich logo.png') }}"
-          alt="Company logo"
-          onerror="this.style.opacity = 0"
-        /><span>BLUERICH<small>Sales &amp; Operations</small></span>
+      <div class="side-top">
+        <div class="logo-box">
+          <img
+            src="{{ url_for('static', filename='images/bluerich logo.png') }}"
+            alt="Company logo"
+            onerror="this.style.opacity = 0"
+          /><span>BLUERICH<small>Sales &amp; Operations</small></span>
+        </div>
+        <button class="bell" id="bell" aria-label="Notifications">
+          <span id="bi"></span><b class="dot" id="dot" hidden></b>
+        </button>
       </div>
+      <p class="portal" id="portal"></p>
       <nav class="nav" id="nav"></nav>
-      <button class="btn out" id="logout">Sign out</button>
+      <div class="side-foot">
+        <p class="mail" id="mail"></p>
+        <div class="foot-row">
+          <a href="#profile" id="prof"></a
+          ><button
+            class="icon-btn"
+            id="theme"
+            aria-label="Switch between light and dark theme"
+          ></button>
+        </div>
+        <button class="out-btn" id="logout"></button>
+      </div>
     </aside>
     <main class="main">
       <header class="topbar">
@@ -53,7 +60,10 @@
         >
           <span></span><span></span><span></span>
         </button>
-        <h1 id="title"></h1>
+        <div class="ttl">
+          <h1 id="title"></h1>
+          <p class="sub" id="sub"></p>
+        </div>
         <span class="role" id="who"></span>
       </header>
       <div id="view"></div>
