@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Create account | BLIERICH</title>
+    <title>Create account | BLUERICH</title>
     <link
       rel="icon"
       type="image/png"
@@ -19,6 +19,18 @@
     />
   </head>
   <body data-page="signup">
+    <div id="loader">
+      <div>
+        <h1>BLUERICH</h1>
+        <div class="bar"></div>
+        <p>Powered by</p>
+        <img
+          src="assets/powered-by-logo.png"
+          alt=""
+          onerror="this.style.opacity = 0"
+        />
+      </div>
+    </div>
     <div class="auth">
       <section class="panel">
         <div class="logo-box">
@@ -26,7 +38,7 @@
             src="{{ url_for('static', filename='images/bluerich logo.png') }}"
             alt="Company logo"
             onerror="this.style.opacity = 0"
-          /><span>BLIERICH<small>Sales &amp; Operations</small></span>
+          /><span>BLUERICH<small>Sales &amp; Operations</small></span>
         </div>
         <h3>Create account</h3>
         <form>
@@ -53,7 +65,9 @@
               required /></label
           ><button class="btn">Sign up</button>
         </form>
-        <p class="muted">Have an account? <a href="{{ url_for('sign_in') }}">Sign in</a></p>
+        <p class="muted">
+          Have an account? <a href="{{ url_for('sign_in') }}">Sign in</a>
+        </p>
       </section>
     </div>
     <script src="{{ url_for('static', filename='app.js') }}"></script>

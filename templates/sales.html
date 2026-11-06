@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sales | BLIERICH</title>
+    <title>Sales | BLUERICH</title>
     <link
       rel="icon"
       type="image/png"
@@ -19,19 +19,40 @@
     />
   </head>
   <body data-page="app" data-role="sales">
+    <div id="loader">
+      <div>
+        <h1>BLUERICH</h1>
+        <div class="bar"></div>
+        <p>Powered by</p>
+        <img
+          src="assets/powered-by-logo.png"
+          alt=""
+          onerror="this.style.opacity = 0"
+        />
+      </div>
+    </div>
+    <div class="scrim" id="scrim"></div>
     <aside class="sidebar">
       <div class="logo-box">
         <img
           src="{{ url_for('static', filename='images/bluerich logo.png') }}"
           alt="Company logo"
           onerror="this.style.opacity = 0"
-        /><span>BLIERICH<small>Sales &amp; Operations</small></span>
+        /><span>BLUERICH<small>Sales &amp; Operations</small></span>
       </div>
       <nav class="nav" id="nav"></nav>
       <button class="btn out" id="logout">Sign out</button>
     </aside>
     <main class="main">
       <header class="topbar">
+        <button
+          class="menu-btn"
+          id="menu"
+          aria-label="Open menu"
+          aria-expanded="false"
+        >
+          <span></span><span></span><span></span>
+        </button>
         <h1 id="title"></h1>
         <span class="role" id="who"></span>
       </header>
