@@ -942,3 +942,36 @@ h1 {
 .note.unread p {
     font-weight: 600
 }
+
+html[data-theme=light] .sidebar {
+    background: #fff;
+    --muted: #6d6853;
+    --text: #17150e;
+    --line: #e8e3d3;
+    --panel: #f3f0e4;
+    --accent: #9a7512;
+    color: #17150e;
+    box-shadow: 1px 0 6px #0001
+}
+
+html[data-theme=light] .nav a:hover,
+html[data-theme=light] #prof:hover,
+html[data-theme=light] .icon-btn:hover,
+html[data-theme=light] .out-btn:hover,
+html[data-theme=light] .bell:hover {
+    color: var(--ink)
+}
+
+html[data-theme=light] .nav a.active,
+html[data-theme=light] #prof.active {
+    color: #0a0a0a
+}
+
+.sidebar,
+.nav a,
+#prof,
+.out-btn,
+.icon-btn,
+.bell {
+    transition: background .25s, color .25s, border-color .25s
+}
