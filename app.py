@@ -45,8 +45,8 @@ def api_sign_in():
     "sales": "/sales_account",
     "manager": "/manager",
     "cashier": "/cashier",
-    "kitchen": "/kitchen",
-    "bakery": "/bakery"
+    "kitchen": "/kitchen_account",
+    "bakery": "/bakery_account"
 }
 
     return jsonify({
@@ -147,27 +147,52 @@ def sign_up():
     
     return render_template("signup.html")
 
+def login_required(role=None):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            user_id = session.get("user_id")
+            if not user_id:
+                return redirect(url_for("sign_in"))
+
+            user = db.session.get(User, user_id)
+            if not user:
+                session.clear()
+                return redirect(url_for("sign_in"))
+
+            if role and user.role != role:
+                return render_template("403.html")
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+
 @app.route("/admin")
+@login_required("admin")
 def admin_dashboard():
     return render_template("admin.html")
 
 @app.route("/manager")
+@login_required("manager")
 def manager_dashboard():
     return render_template("manager.html")
 
 @app.route("/cashier")
+@login_required("cashier")
 def cashier_dashboard():
     return render_template("cashier.html")
 
 @app.route("/sales_account")
+@login_required("sales")
 def sales_dashboard():
     return render_template("sales.html")
 
 @app.route("/kitchen_account")
+@login_required("kitchen")
 def kitchen_dashboard():
     return render_template("kitchen.html")
 
 @app.route("/bakery_account")
+@login_required("bakery")
 def bakery_dashboard():
     return render_template("bakery.html")
 
