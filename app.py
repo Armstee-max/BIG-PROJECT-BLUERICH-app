@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your-secret-key"
@@ -150,10 +151,6 @@ def sign_up():
 def admin_dashboard():
     return render_template("admin.html")
 
-@app.route("/sales_account")
-def sales_dashboard():
-    return render_template("sales.html")
-
 @app.route("/manager")
 def manager_dashboard():
     return render_template("manager.html")
@@ -161,6 +158,19 @@ def manager_dashboard():
 @app.route("/cashier")
 def cashier_dashboard():
     return render_template("cashier.html")
+
+@app.route("/sales_account")
+def sales_dashboard():
+    return render_template("sales.html")
+
+@app.route("/kitchen_account")
+def kitchen_dashboard():
+    return render_template("kitchen.html")
+
+@app.route("/bakery_account")
+def bakery_dashboard():
+    return render_template("bakery.html")
+
 
 if __name__ == "__main__":
     with app.app_context():

@@ -97,10 +97,10 @@ if (P === 'signin' || P === 'signup') {
                 const routes = {
                     admin: '/admin',
                     sales: '/sales_account',
-                    manager: '/manager',
+                    manager: '/manager_account',
                     cashier: '/cashier',
-                    kitchen: '/kitchen',
-                    bakery: '/bakery'
+                    kitchen: '/kitchen_account',
+                    bakery: '/bakery_account'
                 };
 
                 window.location.href =
