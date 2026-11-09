@@ -12,6 +12,7 @@ const I = {
     accounts: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5 17c.5-2 2-3 4-3s3.5 1 4 3M15 9h3M15 13h3"/>',
     profile: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18c1-2 3-3 5.5-3s4.5 1 5.5 3"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+    newadmin: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7M19 8v6M16 11h6"/>',
     attendance: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4m-8 9 2 2 4-4"/>',
     sell: '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12H19l2-8H6"/>',
     handover: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
@@ -193,7 +194,7 @@ function app(s) {
         PR().filter(p => p.cat === mine) : PR();
 
     const NAV = {
-        admin: ['dashboard', 'products', 'staff', 'sales', 'expenses', 'verify', 'reports', 'accounts', 'notifications', 'settings', 'profile'],
+        admin: ['dashboard', 'products', 'staff', 'sales', 'expenses', 'verify', 'reports', 'accounts', 'newadmin', 'notifications', 'settings', 'profile'],
         manager: ['dashboard', 'inventory', 'verify', 'sales', 'notifications', 'profile'],
         sales: ['dashboard', 'sell', 'expenses', 'attendance', 'handover', 'notifications', 'profile'],
         kitchen: ['dashboard', 'stock', 'attendance', 'handover', 'notifications', 'profile'],
@@ -216,6 +217,7 @@ function app(s) {
         stock: 'Kitchen Stock',
         baked: 'Baked Products',
         accounts: 'Accounts',
+        newadmin: 'Add Admin',
         settings: 'Settings',
         profile: 'My Profile',
         notifications: 'Notifications',
@@ -778,15 +780,31 @@ function app(s) {
                         ];
                     })
                 )
+            );
+        },
+
+        newadmin() {
+            const admins = U().filter(u => u.role === 'admin');
+
+            return panel(
+                'Create a new admin',
+                `<p class="muted">The new admin gets full access, including staff, stock and account control. Only give this to someone you trust.</p><br>` +
+                form(
+                    'createAdmin',
+                    inp('name', 'Full name') +
+                    inp('email', 'Email', 'email') +
+                    inp('password', 'Password for the new admin', 'password', 'minlength="6"') +
+                    inp('confirm', 'Confirm password', 'password') +
+                    inp('admin_password', 'Your password (to confirm it is you)', 'password'),
+                    'Create admin'
+                )
             ) +
                 panel(
-                    'Delete all other accounts',
-                    `<p class="muted">Removes all ${l.length} account(s) listed above. Your own account stays.</p>` +
-                    form(
-                        'delAll',
-                        inp('password', 'Confirm your password', 'password'),
-                        'Delete all other accounts'
-                    ).replace('class="btn"', 'class="btn danger"')
+                    'Current admins',
+                    tbl(
+                        ['Name', 'Email'],
+                        admins.map(a => [esc(a.name), esc(a.email)])
+                    )
                 );
         },
 
@@ -836,6 +854,7 @@ function app(s) {
     const SUB = {
         dashboard: "Today's overview",
         notifications: 'Alerts and updates for you',
+        newadmin: 'Create another administrator account',
         profile: 'Your photo and personal details'
     };
 
@@ -1036,12 +1055,62 @@ function app(s) {
                 : 'Discrepancy reported to admin';
         },
 
-        async delAll(f) {
-            throw Error('Deleting accounts needs a Flask route. It is not connected yet.');
+        async createAdmin(f) {
+            if (f.password !== f.confirm) {
+                throw Error("Passwords don't match");
+            }
+
+            const response = await fetch('/api/admins/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: f.name.trim(),
+                    email: f.email.trim(),
+                    password: f.password,
+                    confirm: f.confirm,
+                    admin_password: f.admin_password
+                })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.success) {
+                throw Error(data.message || 'Failed to create admin!');
+            }
+
+            /* Reload the account list from Flask (memory only) so the new admin shows up. */
+            try {
+                const r = await fetch('/api/users');
+                const d = r.ok ? await r.json() : null;
+
+                if (d && Array.isArray(d.users)) USERS = d.users;
+            } catch (e) { }
+
+            return data.message || 'Admin created';
         },
 
         async delMe(f) {
-            throw Error('Deleting accounts needs a Flask route. It is not connected yet.');
+            const response = await fetch('/api/account/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    password: f.password
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw Error(data.message || 'Failed to delete account!')
+            }
+
+            window.location.href = '/signin';
+
+            return data.message
         },
 
         profile(f) {
@@ -1158,11 +1227,11 @@ function app(s) {
 
             const data = await response.json();
 
-        if (!response.ok || !data.success) {
-            throw Error(data.message || 'Failed to delete account!');
-        }
-        
-        return data.message;
+            if (!response.ok || !data.success) {
+                throw Error(data.message || 'Failed to delete account!');
+            }
+
+            return data.message;
         },
 
         rmpic() {
@@ -1538,10 +1607,6 @@ function app(s) {
 }
 
 
-/* ---------------------------------
-   DASHBOARD SESSION CHECK
----------------------------------- */
-
 if (P !== 'signin' && P !== 'signup') {
 
     fetch('/api/session')
@@ -1575,8 +1640,7 @@ if (P !== 'signin' && P !== 'signup') {
 
             USERS = [user];
 
-            /* Optional: if Flask later adds GET /api/users (admin/manager only),
-               the full staff list is loaded here, in memory only. */
+
             fetch('/api/users')
                 .then(r => (r.ok ? r.json() : null))
                 .then(d => {

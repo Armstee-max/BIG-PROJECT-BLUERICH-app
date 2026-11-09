@@ -238,11 +238,91 @@ def delete_user():
         "message": "Account deleted successfully!"
     })
 
-@app.route("/api/users/delete-all", methods=["POST"])
+@app.route("/api/account/delete", methods=["POST"])
 @login_required("admin")
-def delete_all_users():
-    pass
+def delete_my_account():
+    data = request.get_json(silent=True) or {}
+    password = data.get("password", "")
+
+    if not password:
+        return jsonify({
+            "success": False,
+            "message": "Account password is required!"
+        }), 400
     
+    admin = db.session.get(User, session.get("user_id"))
+
+    if not check_password_hash(admin.password_hash, password):
+        return jsonify({
+            "success": False,
+            "message": "Incorrect password!"
+        }), 401
+
+    db.session.delete(admin)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Your account has been deleted successfully!"
+    })
+
+@app.route("/api/admins/create", methods=["POST"])
+@login_required("admin")
+def create_admin():
+    data = request.get_json(silent=True) or {}
+
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    confirm = data.get("confirm", "")
+    admin_password = data.get("admin_password", "")
+
+    current_admin = db.session.get(User, session.get("user_id"))
+
+    if not name or not email or not password or not confirm or not admin_password:
+        return jsonify({
+            "success": False,
+            "message": "All Fields are Required!"
+        }), 400
+
+    if not check_password_hash(current_admin.password_hash, admin_password):
+        return jsonify({
+            "success": False,
+            "message": "Incorrect Admin Password!"
+        }), 401
+
+
+    if password != confirm:
+        return jsonify({
+            "success": False,
+            "message": "Passwords don't match!"
+        }), 400
+
+    existing_admin = User.query.filter_by(email=email).first()
+
+    if existing_admin:
+        return jsonify({
+            "success": False,
+            "message": "Email Already Exists!"
+        }), 409
+
+    hashed_password = generate_password_hash(password)
+
+    new_admin = User(
+        name=name,
+        email=email,
+        password_hash=hashed_password,
+        role="admin"
+    )
+    
+    db.session.add(new_admin)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Admin account created successfuly!"
+    }), 201
+
 
 @app.route("/admin")
 @login_required("admin")
