@@ -81,6 +81,9 @@ const hash = async s => [...new Uint8Array(
 )].map(b => b.toString(16).padStart(2, '0')).join('');
 
 const me = () => db.get('session', null);
+
+/* Accounts come from Flask and live in memory only (never saved to localStorage). */
+let USERS = [];
 const P = document.body.dataset.page;
 
 
@@ -97,7 +100,7 @@ if (P === 'signin' || P === 'signup') {
                 const routes = {
                     admin: '/admin',
                     sales: '/sales_account',
-                    manager: '/manager_account',
+                    manager: '/manager',
                     cashier: '/cashier',
                     kitchen: '/kitchen_account',
                     bakery: '/bakery_account'
@@ -107,7 +110,7 @@ if (P === 'signin' || P === 'signup') {
                     routes[data.user.role] || '/signin';
             }
         })
-        .catch(() => {});
+        .catch(() => { });
 
     const form = document.querySelector('form');
 
@@ -142,7 +145,7 @@ if (P === 'signin' || P === 'signup') {
 
                 if (P === 'signup') {
                     setTimeout(() => {
-                        window.location.href = '/signin';
+                        window.location.href = result.redirect;
                     }, 1000);
                 } else {
                     setTimeout(() => {
@@ -168,7 +171,20 @@ function app(s) {
     const PR = () => db.get('products');
     const SA = () => db.get('sales');
     const EX = () => db.get('exp');
-    const U = () => db.get('users');
+    /* Extras Flask does not store yet (phone, address, about, pic, shift, excused date)
+       are kept per email under bl_profiles. Account data (name, email, role) is never saved here. */
+    const PF = () => db.get('profiles', {});
+    const setX = (email, o) => {
+        const p = PF();
+        p[email] = { ...p[email], ...o };
+        db.set('profiles', p);
+    };
+    const U = () => USERS.map(u => ({
+        shift: 'Morning',
+        excusedUntil: '',
+        ...PF()[u.email],
+        ...u
+    }));
 
     const mine = R === 'kitchen' ? 'Kitchen' :
         R === 'bakery' ? 'Bakery' : null;
@@ -215,9 +231,9 @@ function app(s) {
             <table>
                 <tr>${h.map(x => `<th>${x}</th>`).join('')}</tr>
                 ${r.length
-                    ? r.map(x => `<tr>${x.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
-                    : `<tr><td colspan="${h.length}" class="empty">Nothing recorded yet</td></tr>`
-                }
+            ? r.map(x => `<tr>${x.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+            : `<tr><td colspan="${h.length}" class="empty">Nothing recorded yet</td></tr>`
+        }
             </table>
         </div>`;
 
@@ -406,12 +422,13 @@ function app(s) {
                     <p class="muted">${x.date} · ${x.time}</p>
                     <p class="muted">Served by ${esc(x.byName)}</p>
             ` +
-            tbl(
-                ['Item', 'Qty', 'Price', 'Total'],
-                items(x).map(i => [esc(i.name), i.qty, N(i.price), N(i.total)])
-            ) +
-            `
+                tbl(
+                    ['Item', 'Qty', 'Price', 'Total'],
+                    items(x).map(i => [esc(i.name), i.qty, N(i.price), N(i.total)])
+                ) +
+                `
                     <p class="grand">Total: ${N(x.total)}</p>
+                    <p class="muted c">Software By: DGW</p>
                     <p class="muted c">Thank you for your purchase</p>
                 </section>`;
         },
@@ -478,13 +495,13 @@ function app(s) {
                     )
                     : ''
             ) +
-            panel(
-                'Expenses',
-                tbl(
-                    ['Date', 'Item', 'Amount', 'By'],
-                    l.map(x => [x.date, esc(x.item), N(x.amount), esc(x.byName)])
-                )
-            );
+                panel(
+                    'Expenses',
+                    tbl(
+                        ['Date', 'Item', 'Amount', 'By'],
+                        l.map(x => [x.date, esc(x.item), N(x.amount), esc(x.byName)])
+                    )
+                );
         },
 
         verify() {
@@ -505,45 +522,45 @@ function app(s) {
                     )
                     : ''
             ) +
-            panel(
-                'Verification records',
-                tbl(
-                    ['Date', 'Product', 'Expected', 'Counted', 'Difference', 'Status', 'By'].concat(ad ? ['Action'] : []),
-                    v.map(x =>
-                        [
-                            x.date,
-                            esc(x.name),
-                            x.exp,
-                            x.cnt,
-                            x.cnt - x.exp,
-                            B(
-                                x.status === 'Discrepancy' ? 'progress' :
-                                x.status === 'Resolved' ? 'done' : 'new',
-                                x.status
-                            ),
-                            esc(x.byName)
-                        ].concat(ad ? [
-                            x.status === 'Discrepancy'
-                                ? `<button class="btn sm" data-act="resolve" data-id="${x.id}">Correct stock</button>`
-                                : '—'
-                        ] : [])
-                    )
-                )
-            ) +
-            (
-                ad
-                    ? panel(
-                        'Correction history',
-                        tbl(
-                            ['Date', 'Product', 'Old', 'New', 'Reason', 'By'],
-                            fx.map(x => [
-                                x.date, esc(x.name), x.old, x.nw,
-                                esc(x.reason), esc(x.byName)
-                            ])
+                panel(
+                    'Verification records',
+                    tbl(
+                        ['Date', 'Product', 'Expected', 'Counted', 'Difference', 'Status', 'By'].concat(ad ? ['Action'] : []),
+                        v.map(x =>
+                            [
+                                x.date,
+                                esc(x.name),
+                                x.exp,
+                                x.cnt,
+                                x.cnt - x.exp,
+                                B(
+                                    x.status === 'Discrepancy' ? 'progress' :
+                                        x.status === 'Resolved' ? 'done' : 'new',
+                                    x.status
+                                ),
+                                esc(x.byName)
+                            ].concat(ad ? [
+                                x.status === 'Discrepancy'
+                                    ? `<button class="btn sm" data-act="resolve" data-id="${x.id}">Correct stock</button>`
+                                    : '—'
+                            ] : [])
                         )
                     )
-                    : ''
-            );
+                ) +
+                (
+                    ad
+                        ? panel(
+                            'Correction history',
+                            tbl(
+                                ['Date', 'Product', 'Old', 'New', 'Reason', 'By'],
+                                fx.map(x => [
+                                    x.date, esc(x.name), x.old, x.nw,
+                                    esc(x.reason), esc(x.byName)
+                                ])
+                            )
+                        )
+                        : ''
+                );
         },
 
         reports() {
@@ -583,13 +600,13 @@ function app(s) {
                     )
                     : ''
             ) +
-            panel(
-                'Attendance records',
-                tbl(
-                    ['Date', 'Time', 'Staff', 'Method'],
-                    a.map(x => [x.date, x.time, esc(x.name), x.method])
-                )
-            );
+                panel(
+                    'Attendance records',
+                    tbl(
+                        ['Date', 'Time', 'Staff', 'Method'],
+                        a.map(x => [x.date, x.time, esc(x.name), x.method])
+                    )
+                );
         },
 
         handover() {
@@ -604,23 +621,23 @@ function app(s) {
                     'Submit handover'
                 )
             ) +
-            panel(
-                'Handovers',
-                tbl(
-                    ['Date', 'Product', 'Expected', 'Counted', 'From', 'Status', ''],
-                    h.map(x => [
-                        x.date,
-                        esc(x.name),
-                        x.exp,
-                        x.cnt,
-                        esc(x.byName),
-                        B(x.status === 'Accepted' ? 'done' : 'progress', x.status),
-                        x.status === 'Pending' && x.by !== s.email
-                            ? `<button class="btn sm" data-act="accept" data-id="${x.id}">Accept</button>`
-                            : '—'
-                    ])
-                )
-            );
+                panel(
+                    'Handovers',
+                    tbl(
+                        ['Date', 'Product', 'Expected', 'Counted', 'From', 'Status', ''],
+                        h.map(x => [
+                            x.date,
+                            esc(x.name),
+                            x.exp,
+                            x.cnt,
+                            esc(x.byName),
+                            B(x.status === 'Accepted' ? 'done' : 'progress', x.status),
+                            x.status === 'Pending' && x.by !== s.email
+                                ? `<button class="btn sm" data-act="accept" data-id="${x.id}">Accept</button>`
+                                : '—'
+                        ])
+                    )
+                );
         },
 
         profile() {
@@ -642,9 +659,9 @@ function app(s) {
                 <div class="prof">
                     <div class="avatar">
                         ${u.pic
-                            ? `<img src="${u.pic}" alt="">`
-                            : esc(u.name[0] || '?').toUpperCase()
-                        }
+                    ? `<img src="${u.pic}" alt="">`
+                    : esc(u.name[0] || '?').toUpperCase()
+                }
                     </div>
                     <div>
                         <h2>${esc(u.name)}</h2>
@@ -652,15 +669,15 @@ function app(s) {
                         <br>
                         <div class="row">
                             ${self
-                                ? `
+                    ? `
                                     <label class="btn sm light">
                                         Upload photo
                                         <input type="file" accept="image/*" data-pic hidden>
                                     </label>
                                     ${u.pic ? '<button class="btn sm danger" data-act="rmpic">Remove photo</button>' : ''}
                                 `
-                                : '<a class="btn sm light" href="#accounts">Back to accounts</a>'
-                            }
+                    : '<a class="btn sm light" href="#accounts">Back to accounts</a>'
+                }
                         </div>
                     </div>
                 </div>`;
@@ -762,15 +779,15 @@ function app(s) {
                     })
                 )
             ) +
-            panel(
-                'Delete all other accounts',
-                `<p class="muted">Removes all ${l.length} account(s) listed above. Your own account stays.</p>` +
-                form(
-                    'delAll',
-                    inp('password', 'Confirm your password', 'password'),
-                    'Delete all other accounts'
-                ).replace('class="btn"', 'class="btn danger"')
-            );
+                panel(
+                    'Delete all other accounts',
+                    `<p class="muted">Removes all ${l.length} account(s) listed above. Your own account stays.</p>` +
+                    form(
+                        'delAll',
+                        inp('password', 'Confirm your password', 'password'),
+                        'Delete all other accounts'
+                    ).replace('class="btn"', 'class="btn danger"')
+                );
         },
 
         settings: () =>
@@ -868,9 +885,10 @@ function app(s) {
     };
 
     const setU = o => {
-        const u = U();
-        Object.assign(u.find(x => x.email === s.email), o);
-        db.set('users', u);
+        const { name, ...rest } = o;
+        const me_ = USERS.find(x => x.email === s.email);
+        if (name && me_) me_.name = name;
+        setX(s.email, rest);
     };
 
     let arg = '';
@@ -1019,34 +1037,11 @@ function app(s) {
         },
 
         async delAll(f) {
-            await pw(f);
-
-            if (!confirm('Delete ALL other accounts? This cannot be undone.')) {
-                throw Error('Cancelled');
-            }
-
-            db.set('users', U().filter(u => u.email === s.email));
-
-            return 'All other accounts deleted';
+            throw Error('Deleting accounts needs a Flask route. It is not connected yet.');
         },
 
         async delMe(f) {
-            await pw(f);
-
-            if (!confirm('Delete your own account? You will be signed out.')) {
-                throw Error('Cancelled');
-            }
-
-            db.set('users', U().filter(u => u.email !== s.email));
-
-            await fetch('/api/logout', { method: 'POST' });
-
-            toast('Account deleted');
-            setTimeout(() => {
-                window.location.href = '/signup';
-            }, 900);
-
-            return 'Account deleted';
+            throw Error('Deleting accounts needs a Flask route. It is not connected yet.');
         },
 
         profile(f) {
@@ -1062,7 +1057,6 @@ function app(s) {
             });
 
             s.name = by.byName = name;
-            db.set('session', { ...s });
 
             return 'Profile saved';
         },
@@ -1116,11 +1110,7 @@ function app(s) {
             const d = new Date();
             d.setDate(d.getDate() + n);
 
-            const u = U();
-            u.find(x => x.email === b.dataset.id).excusedUntil =
-                d.toISOString().slice(0, 10);
-
-            db.set('users', u);
+            setX(b.dataset.id, { excusedUntil: d.toISOString().slice(0, 10) });
 
             note(b.dataset.id, 'You have been excused for ' + n + ' days');
 
@@ -1155,18 +1145,24 @@ function app(s) {
             return 'Stock corrected';
         },
 
-        delUser(b) {
-            const u = U().find(x => x.email === b.dataset.id);
+        async delUser(b) {
+            const email = b.dataset.id;
 
-            if (!u || !confirm(
-                'Delete ' + u.name + ' (' + u.role + ')? This cannot be undone.'
-            )) {
-                return;
-            }
+            const response = await fetch('/api/users/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email })
+            });
 
-            db.set('users', U().filter(x => x.email !== u.email));
+            const data = await response.json();
 
-            return u.name + ' deleted';
+        if (!response.ok || !data.success) {
+            throw Error(data.message || 'Failed to delete account!');
+        }
+        
+        return data.message;
         },
 
         rmpic() {
@@ -1440,10 +1436,7 @@ function app(s) {
         const m = e.target.dataset.shift;
 
         if (m) {
-            const u = U();
-            u.find(x => x.email === m).shift = e.target.value;
-
-            db.set('users', u);
+            setX(m, { shift: e.target.value });
 
             note(m, 'Your shift is now ' + e.target.value);
 
@@ -1567,8 +1560,8 @@ if (P !== 'signin' && P !== 'signup') {
                 sales: '/sales_account',
                 manager: '/manager',
                 cashier: '/cashier',
-                kitchen: '/kitchen',
-                bakery: '/bakery'
+                kitchen: '/kitchen_account',
+                bakery: '/bakery_account'
             };
 
             const currentRoute = routes[user.role];
@@ -1578,32 +1571,21 @@ if (P !== 'signin' && P !== 'signup') {
                 return;
             }
 
-            /*
-             * Keep the current dashboard's localStorage user data
-             * available while we migrate business features later.
-             */
+            localStorage.removeItem('bl_users');
 
-            const users = db.get('users');
-            const existing = users.find(u => u.email === user.email);
+            USERS = [user];
 
-            if (existing) {
-                Object.assign(existing, {
-                    name: user.name,
-                    email: user.email,
-                    role: user.role
-                });
-            } else {
-                users.push({
-                    name: user.name,
-                    email: user.email,
-                    role: user.role,
-                    joined: day()
-                });
-            }
+            /* Optional: if Flask later adds GET /api/users (admin/manager only),
+               the full staff list is loaded here, in memory only. */
+            fetch('/api/users')
+                .then(r => (r.ok ? r.json() : null))
+                .then(d => {
+                    if (d && Array.isArray(d.users)) USERS = d.users;
+                })
+                .catch(() => { })
+                .finally(() => app(user));
 
-            db.set('users', users);
-
-            app(user);
+            return;
 
         })
         .catch(() => {

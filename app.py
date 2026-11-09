@@ -99,6 +99,7 @@ def api_logout():
 def sign_up():
     if request.method == "POST":
         print("FLASK SIGNUP ROUTE REACHED")
+
         data = request.get_json(silent=True) or request.form
         name = data.get("name", "").strip()
         email = data.get("email", "").strip()
@@ -106,22 +107,27 @@ def sign_up():
         confirm_pass = data.get("confirm", "")
         role = data.get("role", "")
         print("SUBMITTED ROLE:", repr(role))
+
         if not name or not email or not password or not confirm_pass or not role:
             return jsonify({
                 "success": False,
                 "message": "Fields Are Empty!"
             }), 400
+        
         if password != confirm_pass:
             return jsonify({
                 "success": False,
                 "message": "Passwords Don't Match!"
             }), 400
+        
         elif User.query.filter_by(email=email).first():
             return jsonify({
                 "success": False,
                 "message": "Email Already Exists!"
             }), 409
+        
         allowed_roles = ["sales", "cashier", "kitchen", "bakery", "manager"]
+
         if role not in allowed_roles:
             return jsonify({
                 "success": False,
@@ -138,33 +144,105 @@ def sign_up():
         db.session.add(new_user)
         db.session.commit()
 
+        session.clear()
+        session["user_id"] = new_user.id
+
+        redirects = {
+            "admin": url_for("admin_dashboard"),
+            "manager": url_for("manager_dashboard"),
+            "cashier": url_for("cashier_dashboard"),
+            "sales": url_for("sales_dashboard"),
+            "kitchen": url_for("kitchen_dashboard"),
+            "bakery": url_for("bakery_dashboard")
+        }
+
         return jsonify({
             "success": True,
             "message": "Account Created Successfully!",
-            "redirect": url_for("sign_in")
+            "redirect": redirects.get(new_user.role, url_for("sign_in"))
         })
     
     
     return render_template("signup.html")
 
-def login_required(role=None):
+def login_required(*roles):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
             user_id = session.get("user_id")
+
             if not user_id:
                 return redirect(url_for("sign_in"))
 
             user = db.session.get(User, user_id)
+
             if not user:
                 session.clear()
                 return redirect(url_for("sign_in"))
 
-            if role and user.role != role:
+            if roles and user.role not in roles:
                 return render_template("403.html")
             return function(*args, **kwargs)
+        
         return wrapper
     return decorator
+
+@app.route("/api/users")
+@login_required("admin")
+def view_users():
+    users = User.query.order_by(User.name).all()
+
+    return jsonify({
+        "users": [
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role
+            }
+            for user in users
+        ]
+    })
+
+@app.route("/api/users/delete", methods=["POST"])
+@login_required("admin")
+def delete_user():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip()
+
+    if not email:
+        return jsonify({
+            "success": False,
+            "message": "Account Email is Required!"
+        }), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({
+            "success": False,
+            "message": "Account not found"
+        }), 404
+
+    if user.id == session.get("user_id"):
+        return jsonify({
+            "success": False,
+            "message": "You cannot delete your own account here!"
+        }), 403
+
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Account deleted successfully!"
+    })
+
+@app.route("/api/users/delete-all", methods=["POST"])
+@login_required("admin")
+def delete_all_users():
+    pass
+    
 
 @app.route("/admin")
 @login_required("admin")

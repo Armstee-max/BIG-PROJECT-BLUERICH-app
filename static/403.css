@@ -1,0 +1,43 @@
+:root {
+    --black: #0a0a0a;
+    --panel: #151515;
+    --line: #2e2a1c;
+    --accent: #b8932a;
+    --sky: #f3dc8a;
+    --blue: #d4af37;
+    --text: #f2efe6;
+    --muted: #a39e8a;
+    --radius: 12px;
+    --field: #000;
+    --hover: #1f1b0e;
+    --ink: #f3dc8a
+}
+
+html[data-theme=light] {
+    --black: #f5f4ef;
+    --panel: #fff;
+    --line: #e8e3d3;
+    --text: #17150e;
+    --muted: #6d6853;
+    --field: #fff;
+    --hover: #faf6e6;
+    --ink: #7a5c0b;
+    --accent: #9a7512
+}
+
+html[data-theme=light] .card,
+html[data-theme=light] .panel {
+    box-shadow: 0 1px 4px #0001
+}
+
+
+body {
+    font-family: "Segoe UI", system-ui, Arial, sans-serif;
+    background: var(--black);
+    color: var(--text);
+}
+
+h1 {
+    font-size: 500%;
+    color: var(--accent)
+}
