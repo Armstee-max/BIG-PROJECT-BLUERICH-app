@@ -3,11 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your-secret-key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bluerich.db"
 
+
 db = SQLAlchemy(app)
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -16,9 +19,11 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
 
+
 @app.route("/signin")
 def sign_in():
     return render_template("signin.html")
+
 @app.route("/api/signin", methods=["POST"])
 def api_sign_in():
     data = request.get_json(silent=True) or request.form
@@ -48,7 +53,6 @@ def api_sign_in():
     "kitchen": "/kitchen_account",
     "bakery": "/bakery_account"
 }
-
     return jsonify({
         "success": True,
         "message": "Login Successful!",
@@ -61,6 +65,7 @@ def api_sign_in():
         }
     })
 
+
 @app.route("/api/session")
 def api_session():
     user_id = session.get("user_id")
@@ -69,7 +74,7 @@ def api_session():
             "authenticated": False
         }), 401
 
-    user = User.query.get(user_id)
+    user = session.get(user_id)
     if not user:
         session.clear()
         return jsonify({
@@ -86,6 +91,7 @@ def api_session():
         }
     })
 
+
 @app.route("/api/logout", methods=["POST"])
 def api_logout():
     session.clear()
@@ -93,6 +99,7 @@ def api_logout():
         "success": True,
         "message": "Logged out successfully!"
     })
+
 
 @app.route("/signup", methods=["GET"])
 @app.route("/api/signup", methods=["POST"])
@@ -120,7 +127,7 @@ def sign_up():
                 "message": "Passwords Don't Match!"
             }), 400
         
-        elif User.query.filter_by(email=email).first():
+        if User.query.filter_by(email=email).first():
             return jsonify({
                 "success": False,
                 "message": "Email Already Exists!"
@@ -133,7 +140,9 @@ def sign_up():
                 "success": False,
                 "message": "Invalid Role Selected!"
             }), 400
+        
         hashed_password = generate_password_hash(password)
+
         new_user = User(
             name = name,
             email = email,
@@ -162,20 +171,18 @@ def sign_up():
             "redirect": redirects.get(new_user.role, url_for("sign_in"))
         })
     
-    
     return render_template("signup.html")
+
 
 def login_required(*roles):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
             user_id = session.get("user_id")
-
             if not user_id:
                 return redirect(url_for("sign_in"))
 
             user = db.session.get(User, user_id)
-
             if not user:
                 session.clear()
                 return redirect(url_for("sign_in"))
@@ -186,6 +193,7 @@ def login_required(*roles):
         
         return wrapper
     return decorator
+
 
 @app.route("/api/users")
 @login_required("admin")
@@ -204,12 +212,13 @@ def view_users():
         ]
     })
 
+
 @app.route("/api/users/delete", methods=["POST"])
 @login_required("admin")
 def delete_user():
     data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip()
 
+    email = data.get("email", "").strip()
     if not email:
         return jsonify({
             "success": False,
@@ -217,7 +226,6 @@ def delete_user():
         }), 400
 
     user = User.query.filter_by(email=email).first()
-
     if not user:
         return jsonify({
             "success": False,
@@ -238,12 +246,13 @@ def delete_user():
         "message": "Account deleted successfully!"
     })
 
+
 @app.route("/api/account/delete", methods=["POST"])
 @login_required("admin")
 def delete_my_account():
     data = request.get_json(silent=True) or {}
-    password = data.get("password", "")
 
+    password = data.get("password", "")
     if not password:
         return jsonify({
             "success": False,
@@ -265,6 +274,7 @@ def delete_my_account():
         "success": True,
         "message": "Your account has been deleted successfully!"
     })
+
 
 @app.route("/api/admins/create", methods=["POST"])
 @login_required("admin")
@@ -290,7 +300,6 @@ def create_admin():
             "success": False,
             "message": "Incorrect Admin Password!"
         }), 401
-
 
     if password != confirm:
         return jsonify({
@@ -329,25 +338,30 @@ def create_admin():
 def admin_dashboard():
     return render_template("admin.html")
 
+
 @app.route("/manager")
 @login_required("manager")
 def manager_dashboard():
     return render_template("manager.html")
+
 
 @app.route("/cashier")
 @login_required("cashier")
 def cashier_dashboard():
     return render_template("cashier.html")
 
+
 @app.route("/sales_account")
 @login_required("sales")
 def sales_dashboard():
     return render_template("sales.html")
 
+
 @app.route("/kitchen_account")
 @login_required("kitchen")
 def kitchen_dashboard():
     return render_template("kitchen.html")
+
 
 @app.route("/bakery_account")
 @login_required("bakery")
@@ -358,4 +372,7 @@ def bakery_dashboard():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+
     app.run(debug=True)
+
+

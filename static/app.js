@@ -83,14 +83,9 @@ const hash = async s => [...new Uint8Array(
 
 const me = () => db.get('session', null);
 
-/* Accounts come from Flask and live in memory only (never saved to localStorage). */
 let USERS = [];
 const P = document.body.dataset.page;
 
-
-/* ---------------------------------
-   AUTHENTICATION: SIGNIN AND SIGNUP
----------------------------------- */
 
 if (P === 'signin' || P === 'signup') {
 
@@ -341,8 +336,8 @@ function app(s) {
                     sel('cat', 'Category',
                         '<option>Kitchen</option><option>Bakery</option><option>Drinks</option>'
                     ) +
-                    inp('price', 'Selling price (₦)', 'number', 'min="0" step="0.01"') +
-                    inp('qty', 'Opening stock', 'number', 'min="0"'),
+                    inp('price', 'Selling price (₦)', 'number', 'min="0" step="100"') +
+                    inp('qty', 'Opening stock', 'number', 'min="0" step="5"'),
                     'Save product'
                 )
             ) +
@@ -754,7 +749,7 @@ function app(s) {
                 'All accounts',
                 `<label>Search<input data-filter placeholder="Name, email or role"></label><br>` +
                 tbl(
-                    ['Name', 'Email', 'Role', 'Shift', 'Status', 'Joined', 'Present today', 'Sales', 'Action'],
+                    ['Name', 'Email', 'Role', 'Shift','Status', 'Joined', 'Present today', 'Sales', 'Action'],
                     l.map(u => {
                         const m = sa.filter(x => x.by === u.email);
 
