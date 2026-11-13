@@ -1047,3 +1047,13 @@ html[data-theme=light] #prof.active {
         border-color: #000 !important
     }
 }
+
+#gear svg {
+    transition: transform .6s cubic-bezier(.4, 0, .2, 1)
+}
+
+html[data-theme] .icon-btn.active,
+html[data-theme] .icon-btn.active:hover {
+    background: var(--blue);
+    color: #0a0a0a
+}

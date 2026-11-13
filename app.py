@@ -1,12 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+import os
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
+from uuid import uuid4
 
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your-secret-key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bluerich.db"
+
+app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+
+def allowed_image(filename):
+    return (
+        "." in filename and
+        filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+    )
 
 
 db = SQLAlchemy(app)
@@ -18,6 +32,17 @@ class User(db.Model):
     email = db.Column(db.String(120), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
+    profile = db.relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class Profile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+    phone = db.Column(db.String(20))
+    address = db.Column(db.String(255))
+    about = db.Column(db.Text)
+    profile_pic = db.Column(db.String(255))
+    user = db.relationship("User", back_populates="profile")
 
 
 @app.route("/signin")
@@ -66,6 +91,27 @@ def api_sign_in():
     })
 
 
+def login_required(*roles):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            user_id = session.get("user_id")
+            if not user_id:
+                return redirect(url_for("sign_in"))
+
+            user = db.session.get(User, user_id)
+            if not user:
+                session.clear()
+                return redirect(url_for("sign_in"))
+
+            if roles and user.role not in roles:
+                return render_template("403.html")
+            return function(*args, **kwargs)
+        
+        return wrapper
+    return decorator
+
+
 @app.route("/api/session")
 def api_session():
     user_id = session.get("user_id")
@@ -74,7 +120,7 @@ def api_session():
             "authenticated": False
         }), 401
 
-    user = session.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         session.clear()
         return jsonify({
@@ -89,6 +135,143 @@ def api_session():
             "email": user.email,
             "role": user.role
         }
+    })
+
+
+@app.route("/api/profile")
+@login_required()
+def api_profile():
+    user = db.session.get(User, session.get("user_id"))
+
+    profile = user.profile
+
+    return jsonify({
+        "success": True,
+        "profile": {
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "phone": profile.phone,
+            "address": profile.address,
+            "about": profile.about,
+            "profile_pic": (
+                url_for("get_profile_picture", filename=profile.profile_pic)
+                if profile.profile_pic else None
+            )            
+        }
+    })
+
+
+@app.route("/api/profile/update", methods=["POST"])
+@login_required()
+def update_profile():
+    data = request.get_json(silent=True) or {}
+
+    user = db.session.get(User, session.get("user_id"))
+    profile = user.profile
+
+    new_name = data.get("name", user.name).strip()
+    new_email = data.get("email", user.email).strip()
+
+    existing_user = User.query.filter_by(email=new_email).first()
+    if existing_user and existing_user.id != user.id:
+        return jsonify({
+            "success": False,
+            "message": "Email Already Exists!"
+        }), 409
+
+    user.name = new_name
+    user.email = new_email
+
+    profile.phone = data.get("phone", profile.phone)
+    profile.address = data.get("address", profile.address)
+    profile.about = data.get("about", profile.about)
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Profile updated successfully!"
+    })
+
+
+@app.route("/api/profile/upload-picture", methods=["POST"])
+@login_required()
+def upload_profile_picture():
+    file = request.files.get("profile_pic")
+    if not file or file.filename == "":
+        return jsonify({
+            "success": False,
+            "message": "No picture selected!"
+        }), 400
+
+    if not allowed_image(file.filename):
+        return jsonify({
+            "success": False,
+            "message": "Unsupported image format!"
+        }), 400
+
+    safe_name = secure_filename(file.filename)
+    extension = safe_name.rsplit(".", 1)[1].lower()
+
+    filename = f"{uuid4().hex}.{extension}"
+
+    file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+    user = db.session.get(User, session.get("user_id"))
+    profile = user.profile
+
+    old_picture = profile.profile_pic
+    old_picture_path = os.path.join(
+        app.config["UPLOAD_FOLDER"], old_picture
+    ) if old_picture else None
+
+    profile.profile_pic = filename
+    db.session.commit()
+
+    if old_picture and os.path.exists(old_picture_path):
+        os.remove(old_picture_path)
+
+    return jsonify({
+        "success": True,
+        "message": "Profile picture uploaded successfully!",
+        "profile_pic": filename
+    })
+
+
+@app.route("/uploads/<filename>")
+@login_required()
+def get_profile_picture(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+
+@app.route("/api/profile/remove-picture", methods=["POST"])
+@login_required()
+def remove_profile_picture():
+    user = db.session.get(User, session.get("user_id"))
+    profile = user.profile
+
+    if profile.profile_pic is None:
+        return jsonify({
+            "success": False,
+            "message": "No profile picture to remove!"
+        }), 400
+
+    old_picture = profile.profile_pic
+    old_picture_path = os.path.join(
+        app.config["UPLOAD_FOLDER"], old_picture
+    )
+
+    profile.profile_pic = None
+    db.session.commit()
+
+    if old_picture and os.path.exists(old_picture_path):
+        os.remove(old_picture_path)
+
+    return jsonify({
+        "success": True,
+        "message": "Profile picture removed successfully!",
+        "profile_pic": None
     })
 
 
@@ -150,6 +333,8 @@ def sign_up():
             role = role
         )
 
+        new_user.profile = Profile()
+
         db.session.add(new_user)
         db.session.commit()
 
@@ -172,27 +357,6 @@ def sign_up():
         })
     
     return render_template("signup.html")
-
-
-def login_required(*roles):
-    def decorator(function):
-        @wraps(function)
-        def wrapper(*args, **kwargs):
-            user_id = session.get("user_id")
-            if not user_id:
-                return redirect(url_for("sign_in"))
-
-            user = db.session.get(User, user_id)
-            if not user:
-                session.clear()
-                return redirect(url_for("sign_in"))
-
-            if roles and user.role not in roles:
-                return render_template("403.html")
-            return function(*args, **kwargs)
-        
-        return wrapper
-    return decorator
 
 
 @app.route("/api/users")
@@ -323,6 +487,8 @@ def create_admin():
         password_hash=hashed_password,
         role="admin"
     )
+
+    new_admin.profile = Profile()
     
     db.session.add(new_admin)
     db.session.commit()
